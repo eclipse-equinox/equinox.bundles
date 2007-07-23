@@ -54,22 +54,23 @@ public class EclipseAppContainer implements IRegistryChangeListener, Synchronous
 	static final int LOCKED_SINGLETON_LIMITED_RUNNING = 4;
 	static final int LOCKED_MAIN_THREAD_RUNNING = 5;
 
-	BundleContext context;
+	final BundleContext context;
 	// A map of ApplicationDescriptors keyed by eclipse application ID
-	private HashMap apps = new HashMap();
+	final private HashMap apps = new HashMap();
 
-	private IExtensionRegistry extensionRegistry;
-	private ApplicationLauncher appLauncher;
+	final private IExtensionRegistry extensionRegistry;
+	final private ApplicationLauncher appLauncher;
 	private IBranding branding;
 	private boolean missingProductReported;
 
 	// the currently active application handles
-	private Collection activeHandles = new ArrayList();
+	final private Collection activeHandles = new ArrayList();
 	private EclipseAppHandle activeMain;
 	private EclipseAppHandle activeGlobalSingleton;
 	private EclipseAppHandle activeScopedSingleton;
 	private HashMap activeLimited;
 	private String defaultAppId;
+	private DefaultApplicationListener defaultAppListener;
 
 	public EclipseAppContainer(BundleContext context, IExtensionRegistry extensionRegistry, ApplicationLauncher appLauncher) {
 		this.context = context;
@@ -222,17 +223,16 @@ public class EclipseAppContainer implements IRegistryChangeListener, Synchronous
 		// find the default application
 		String applicationId = getDefaultAppId();
 		EclipseAppDescriptor defaultDesc = null;
-		Map args = null;
+		Map args = new HashMap(2);
+		args.put(EclipseAppDescriptor.APP_DEFAULT, Boolean.TRUE);
 		if (applicationId == null) {
 			// the application id is not set; use a descriptor that will throw an exception
-			args = new HashMap(2);
 			args.put(ErrorApplication.ERROR_EXCEPTION, new RuntimeException(Messages.application_noIdFound));
 			defaultDesc = getAppDescriptor(EXT_ERROR_APP);
 		} else {
 			defaultDesc = getAppDescriptor(applicationId);
 			if (defaultDesc == null) {
 				// the application id is not available in the registry; use a descriptor that will throw an exception
-				args = new HashMap(2);
 				args.put(ErrorApplication.ERROR_EXCEPTION, new RuntimeException(NLS.bind(Messages.application_notFound, applicationId, getAvailableAppsMsg())));
 				defaultDesc = getAppDescriptor(EXT_ERROR_APP);
 			}
@@ -297,9 +297,26 @@ public class EclipseAppContainer implements IRegistryChangeListener, Synchronous
 			// to ensure it is launched on the main thread
 			if (appLauncher == null)
 				throw new IllegalStateException();
-			appLauncher.launch(appHandle, appHandle.getArguments().get(IApplicationContext.APPLICATION_ARGS));
+			DefaultApplicationListener curDefaultApplicationListener = null;
+			synchronized (this) {
+				curDefaultApplicationListener = defaultAppListener;
+			}
+			if (curDefaultApplicationListener != null)
+				curDefaultApplicationListener.launch(appHandle);
+			else
+				appLauncher.launch(appHandle, appHandle.getArguments().get(IApplicationContext.APPLICATION_ARGS));
 		} else {
 			AnyThreadAppLauncher.launchEclipseApplication(appHandle);
+			boolean isDefault = appHandle.isDefault();
+			DefaultApplicationListener curDefaultApplicationListener = null;
+			if (isDefault) {
+				synchronized (this) {
+					if (defaultAppListener == null )
+						defaultAppListener = new DefaultApplicationListener(appHandle);
+					curDefaultApplicationListener = defaultAppListener;
+				}
+				appLauncher.launch(curDefaultApplicationListener, null);
+			}
 		}
 	}
 
