@@ -678,8 +678,28 @@ public class RegistryObjectManager implements IObjectManager {
 					if (tmp == null) // already removed
 						continue;
 					Integer extensionIndex = new Integer(extensions[j]);
-					if (!associatedObjects.containsKey(extensionIndex))
+					if (!associatedObjects.containsKey(extensionIndex)) {
 						result.put(extensionIndex, tmp);
+						collectChildren(tmp, 0, result);
+					}
+				}
+			}
+			else if (object instanceof ExtensionPoint) {
+				// by now extensions of this extension point have been marked as orphans
+				Map orphans = getOrphans();
+				String name = ((ExtensionPoint)object).getUniqueIdentifier();
+				int[] extensions = (int[]) orphans.get(name);
+				if (extensions != null) {
+					for (int j = 0; j < extensions.length; j++) {
+						Extension tmp = (Extension) basicGetObject(extensions[j], RegistryObjectManager.EXTENSION);
+						if (tmp == null) // already removed
+							continue;
+						Integer extensionIndex = new Integer(extensions[j]);
+						if (!associatedObjects.containsKey(extensionIndex)) {
+							result.put(extensionIndex, tmp);
+							collectChildren(tmp, 0, result);
+						}
+					}
 				}
 			}
 		}
