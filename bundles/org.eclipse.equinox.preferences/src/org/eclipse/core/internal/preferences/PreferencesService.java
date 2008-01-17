@@ -89,6 +89,13 @@ public class PreferencesService implements IPreferencesService {
 			return;
 		try {
 			internalApply(tree, filters);
+			// save the preferences
+			try {
+				getRootNode().node(tree.absolutePath()).flush();
+			} catch (BackingStoreException e) {
+				throw new CoreException(createStatusError(PrefsMessages.preferences_saveProblems, e));
+			}
+
 			//this typically causes a major change to the preference tree, so force string sharing
 			lastStringSharing = 0;
 			shareStrings();
