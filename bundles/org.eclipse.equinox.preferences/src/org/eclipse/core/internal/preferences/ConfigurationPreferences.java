@@ -11,11 +11,11 @@
 package org.eclipse.core.internal.preferences;
 
 import java.net.URL;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.osgi.service.datalocation.Location;
 
 /**
  * @since 3.0
@@ -28,14 +28,17 @@ public class ConfigurationPreferences extends EclipsePreferences {
 	private IPath location;
 	private IEclipsePreferences loadLevel;
 	// cache which nodes have been loaded from disk
-	private static Set loadedNodes = new HashSet();
+	private static Set loadedNodes = Collections.synchronizedSet(new HashSet());
 	private static boolean initialized = false;
 	private static IPath baseLocation;
 
 	static {
-		URL url = PreferencesOSGiUtils.getDefault().getConfigurationLocation().getURL();
-		if (url != null)
-			baseLocation = new Path(url.getFile());
+		Location location = PreferencesOSGiUtils.getDefault().getConfigurationLocation();
+		if (location != null) {
+			URL url = location.getURL();
+			if (url != null)
+				baseLocation = new Path(url.getFile());
+		}
 	}
 
 	/**
@@ -70,11 +73,11 @@ public class ConfigurationPreferences extends EclipsePreferences {
 		return location;
 	}
 
-	protected synchronized boolean isAlreadyLoaded(IEclipsePreferences node) {
+	protected boolean isAlreadyLoaded(IEclipsePreferences node) {
 		return loadedNodes.contains(node.name());
 	}
 
-	protected synchronized void loaded() {
+	protected void loaded() {
 		loadedNodes.add(name());
 	}
 
