@@ -9,7 +9,7 @@ Bundle-Activator: org.eclipse.equinox.internal.jsp.jasper.Activator
 Import-Package: javax.servlet;version="2.4",
  javax.servlet.http;version="2.4",
  javax.servlet.jsp;version="2.0",
- org.apache.jasper.servlet,
+ org.apache.jasper.servlet;bundle-symbolic-name="org.apache.jasper",
  org.osgi.framework;version="1.3.0",
  org.osgi.service.http;version="1.2.0",
  org.osgi.service.packageadmin;version="1.2.0",
