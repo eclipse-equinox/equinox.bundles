@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2005 IBM Corporation and others.
+ * Copyright (c) 2004, 2010 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,8 +11,7 @@
 package org.eclipse.core.internal.preferences;
 
 import java.net.URL;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
@@ -28,7 +27,7 @@ public class ConfigurationPreferences extends EclipsePreferences {
 	private IPath location;
 	private IEclipsePreferences loadLevel;
 	// cache which nodes have been loaded from disk
-	private static Set loadedNodes = new HashSet();
+	private static Set loadedNodes = Collections.synchronizedSet(new HashSet());
 	private static boolean initialized = false;
 	private static IPath baseLocation;
 
@@ -70,11 +69,11 @@ public class ConfigurationPreferences extends EclipsePreferences {
 		return location;
 	}
 
-	protected synchronized boolean isAlreadyLoaded(IEclipsePreferences node) {
+	protected boolean isAlreadyLoaded(IEclipsePreferences node) {
 		return loadedNodes.contains(node.name());
 	}
 
-	protected synchronized void loaded() {
+	protected void loaded() {
 		loadedNodes.add(name());
 	}
 
