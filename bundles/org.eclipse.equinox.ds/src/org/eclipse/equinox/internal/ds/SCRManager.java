@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1997-2007 by ProSyst Software GmbH
+ * Copyright (c) 1997-2010 by ProSyst Software GmbH
  * http://www.prosyst.com
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -471,7 +471,7 @@ public class SCRManager implements ServiceListener, SynchronousBundleListener, C
 			}
 		}
 
-		Dictionary allHeaders = bundle.getHeaders();
+		Dictionary allHeaders = bundle.getHeaders("");
 
 		if (!((allHeaders.get(ComponentConstants.SERVICE_COMPONENT)) != null)) {
 			// no component descriptions in this bundle

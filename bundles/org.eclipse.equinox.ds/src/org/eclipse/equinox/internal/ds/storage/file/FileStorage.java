@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1997-2007 by ProSyst Software GmbH
+ * Copyright (c) 1997-2010 by ProSyst Software GmbH
  * http://www.prosyst.com
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -222,7 +222,7 @@ public class FileStorage extends ComponentStorage {
 	}
 
 	private ManifestElement[] parseManifestHeader(Bundle bundle) {
-		Dictionary headers = bundle.getHeaders();
+		Dictionary headers = bundle.getHeaders("");
 		String files = (String) headers.get(ComponentConstants.SERVICE_COMPONENT);
 		if (files == null)
 			return new ManifestElement[0];

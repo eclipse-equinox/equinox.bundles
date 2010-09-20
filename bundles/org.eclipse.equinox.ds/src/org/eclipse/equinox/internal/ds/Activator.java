@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1997-2007 by ProSyst Software GmbH
+ * Copyright (c) 1997-2010 by ProSyst Software GmbH
  * http://www.prosyst.com
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -153,7 +153,7 @@ public class Activator implements BundleActivator, SynchronousBundleListener {
 		boolean hasHeaders = false;
 		Bundle[] allBundles = bc.getBundles();
 		for (int i = 0; i < allBundles.length; i++) {
-			Dictionary allHeaders = allBundles[i].getHeaders();
+			Dictionary allHeaders = allBundles[i].getHeaders("");
 			if (allHeaders.get(ComponentConstants.SERVICE_COMPONENT) != null) {
 				hasHeaders = true;
 				break;
@@ -219,7 +219,7 @@ public class Activator implements BundleActivator, SynchronousBundleListener {
 
 	public void bundleChanged(BundleEvent event) {
 		if (event.getType() == BundleEvent.STARTING) {
-			Dictionary allHeaders = event.getBundle().getHeaders();
+			Dictionary allHeaders = event.getBundle().getHeaders("");
 			if ((allHeaders.get(ComponentConstants.SERVICE_COMPONENT)) != null) {
 				// The bundle is holding components - activate scr
 				bc.removeBundleListener(this);
