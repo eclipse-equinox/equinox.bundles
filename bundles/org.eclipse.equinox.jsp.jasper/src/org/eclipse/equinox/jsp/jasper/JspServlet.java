@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2008 Cognos Incorporated, IBM Corporation and others.
+ * Copyright (c) 2005, 2010 Cognos Incorporated, IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,10 +13,14 @@ package org.eclipse.equinox.jsp.jasper;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.Permission;
+import java.security.PermissionCollection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
@@ -61,6 +65,29 @@ import org.osgi.framework.Bundle;
  */
 
 public class JspServlet extends HttpServlet {
+
+	private static class BundlePermissionCollection extends PermissionCollection {
+		private static final long serialVersionUID = -6365478608043900677L;
+		private Bundle bundle;
+
+		public BundlePermissionCollection(Bundle bundle) {
+			this.bundle = bundle;
+			super.setReadOnly();
+		}
+
+		public void add(Permission permission) {
+			throw new SecurityException();
+		}
+
+		public boolean implies(Permission permission) {
+			return bundle.hasPermission(permission);
+		}
+
+		public Enumeration elements() {
+			return Collections.enumeration(Collections.EMPTY_LIST);
+		}
+	}
+
 	private static final long serialVersionUID = -4110476909131707652L;
 	private Servlet jspServlet = new org.apache.jasper.servlet.JspServlet();
 	Bundle bundle;
@@ -84,6 +111,20 @@ public class JspServlet extends HttpServlet {
 		try {
 			Thread.currentThread().setContextClassLoader(jspLoader);
 			jspServlet.init(new ServletConfigAdaptor(config));
+
+			// If a SecurityManager is set we need to override the permissions collection set in Jasper's JSPRuntimeContext
+			if (System.getSecurityManager() != null) {
+				try {
+					Field jspRuntimeContextField = jspServlet.getClass().getDeclaredField("rctxt"); //$NON-NLS-1$
+					jspRuntimeContextField.setAccessible(true);
+					Object jspRuntimeContext = jspRuntimeContextField.get(jspServlet);
+					Field permissionCollectionField = jspRuntimeContext.getClass().getDeclaredField("permissionCollection"); //$NON-NLS-1$
+					permissionCollectionField.setAccessible(true);
+					permissionCollectionField.set(jspRuntimeContext, new BundlePermissionCollection(bundle));
+				} catch (Exception e) {
+					throw new ServletException("Cannot initialize JSPServlet. Failed to set JSPRuntimeContext permission collection."); //$NON-NLS-1$
+				}
+			}
 		} finally {
 			Thread.currentThread().setContextClassLoader(original);
 		}
