@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008 IBM Corporation and others.
+ * Copyright (c) 2008, 2010 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -68,7 +68,7 @@ public class SecurePreferencesRoot extends SecurePreferences implements IStorage
 
 	static private ILock lock = Job.getJobManager().newLock();
 
-	final private URL location;
+	private URL location;
 
 	private long timestamp = 0;
 
@@ -112,6 +112,11 @@ public class SecurePreferencesRoot extends SecurePreferences implements IStorage
 				properties.load(is);
 				timestamp = getLastModified();
 			}
+		} catch (IllegalArgumentException e) {
+			String msg = NLS.bind(SecAuthMessages.badStorageURL, location.toString());
+			AuthPlugin.getDefault().logError(msg, e);
+			location = null; // don't attempt to use it 
+			return;
 		} finally {
 			if (is != null)
 				is.close();
