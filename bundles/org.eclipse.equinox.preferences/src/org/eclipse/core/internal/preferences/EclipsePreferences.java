@@ -58,6 +58,7 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	protected boolean removed = false;
 	private ListenerList nodeChangeListeners;
 	private ListenerList preferenceChangeListeners;
+	private ScopeDescriptor descriptor;
 
 	public static boolean DEBUG_PREFERENCE_GENERAL = false;
 	public static boolean DEBUG_PREFERENCE_SET = false;
@@ -199,7 +200,7 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	public String[] childrenNames() {
 		// illegal state if this node has been removed
 		checkRemoved();
-		return internalChildNames();
+		return descriptor == null ? internalChildNames() : descriptor.childrenNames(absolutePath());
 	}
 
 	protected String[] internalChildNames() {
@@ -578,7 +579,9 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	}
 
 	protected EclipsePreferences internalCreate(EclipsePreferences nodeParent, String nodeName, Object context) {
-		return new EclipsePreferences(nodeParent, nodeName);
+		EclipsePreferences result = new EclipsePreferences(nodeParent, nodeName);
+		result.descriptor = this.descriptor;
+		return result;
 	}
 
 	/**
@@ -650,7 +653,7 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	 * Subclasses to over-ride.
 	 */
 	protected boolean isAlreadyLoaded(IEclipsePreferences node) {
-		return true;
+		return descriptor == null ? true : descriptor.isAlreadyLoaded(node.absolutePath());
 	}
 
 	/*
@@ -670,7 +673,12 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	 * could not be loaded
 	 */
 	protected void load() throws BackingStoreException {
-		load(getLocation());
+		if (descriptor == null) {
+			load(getLocation());
+		} else {
+			Properties props = descriptor.load(absolutePath());
+			// TODO set the properties without sending out change events
+		}
 	}
 
 	protected static Properties loadProperties(IPath location) throws BackingStoreException {
@@ -712,7 +720,11 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	}
 
 	protected void loaded() {
-		// do nothing
+		if (descriptor == null) {
+			// do nothing
+		} else {
+			descriptor.loaded(absolutePath());
+		}
 	}
 
 	protected void loadLegacy() {
@@ -1046,7 +1058,11 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 	 * could not be saved
 	 */
 	protected void save() throws BackingStoreException {
-		save(getLocation());
+		if (descriptor == null) {
+			save(getLocation());
+		} else {
+			descriptor.save(absolutePath(), convertToProperties(new Properties(), "")); //$NON-NLS-1$
+		}
 	}
 
 	protected void save(IPath location) throws BackingStoreException {

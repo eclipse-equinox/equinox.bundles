@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2009 IBM Corporation and others.
+ * Copyright (c) 2005, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -38,6 +38,7 @@ public class PrefsMessages extends NLS {
 	public static String preferences_invalidExtensionSuperclass;
 	public static String preferences_invalidFileFormat;
 	public static String preferences_loadException;
+	public static String preferences_loadProblems;
 	public static String preferences_matching;
 	public static String preferences_missingClassAttribute;
 	public static String preferences_missingScopeAttribute;

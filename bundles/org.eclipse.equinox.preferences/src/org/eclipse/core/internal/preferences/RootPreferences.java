@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2006 IBM Corporation and others.
+ * Copyright (c) 2004, 2011 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -52,17 +52,16 @@ public class RootPreferences extends EclipsePreferences {
 	 * @see EclipsePreferences#getChild(String, Plugin)
 	 */
 	protected synchronized IEclipsePreferences getChild(String key, Object context) {
-		Object value = null;
-		IEclipsePreferences child = null;
-		if (children != null)
-			value = children.get(key);
-		if (value != null) {
-			if (value instanceof IEclipsePreferences)
-				return (IEclipsePreferences) value;
-			//lazy initialization
-			child = PreferencesService.getDefault().createNode(key);
-			addChild(key, child);
-		}
+		if (children == null)
+			return null;
+		Object value = children.get(key);
+		if (value == null)
+			return null;
+		if (value instanceof IEclipsePreferences)
+			return (IEclipsePreferences) value;
+		//lazy initialization
+		IEclipsePreferences child = PreferencesService.getDefault().createNode(key);
+		addChild(key, child);
 		return child;
 	}
 
