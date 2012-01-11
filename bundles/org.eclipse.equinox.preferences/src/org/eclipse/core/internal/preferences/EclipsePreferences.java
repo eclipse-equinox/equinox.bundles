@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2011 IBM Corporation and others.
+ * Copyright (c) 2004, 2012 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -69,6 +69,41 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 		DEBUG_PREFERENCE_GENERAL = PreferencesOSGiUtils.getDefault().getBooleanDebugOption(debugPluginName + "/general", false); //$NON-NLS-1$
 		DEBUG_PREFERENCE_SET = PreferencesOSGiUtils.getDefault().getBooleanDebugOption(debugPluginName + "/set", false); //$NON-NLS-1$
 		DEBUG_PREFERENCE_GET = PreferencesOSGiUtils.getDefault().getBooleanDebugOption(debugPluginName + "/get", false); //$NON-NLS-1$
+	}
+
+	protected class SortedProperties extends Properties {
+
+		private static final long serialVersionUID = 1L;
+
+		public SortedProperties() {
+			super();
+		}
+
+		/* (non-Javadoc)
+		 * @see java.util.Hashtable#keys()
+		 */
+		public synchronized Enumeration keys() {
+			TreeSet set = new TreeSet();
+			for (Enumeration e = super.keys(); e.hasMoreElements();)
+				set.add(e.nextElement());
+			return Collections.enumeration(set);
+		}
+
+		/* (non-Javadoc)
+		 * @see java.util.Hashtable#entrySet()
+		 */
+		public Set entrySet() {
+			TreeSet set = new TreeSet(new Comparator() {
+				public int compare(Object e1, Object e2) {
+					String s1 = (String) ((Map.Entry) e1).getKey();
+					String s2 = (String) ((Map.Entry) e2).getKey();
+					return s1.compareTo(s2);
+				}
+			});
+			for (Iterator i = super.entrySet().iterator(); i.hasNext();)
+				set.add(i.next());
+			return set;
+		}
 	}
 
 	public EclipsePreferences() {
@@ -243,6 +278,50 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 			}
 		}
 		PreferencesService.getDefault().shareStrings();
+	}
+
+	/*
+	 * Helper method to persist a Properties object to the filesystem. We use this
+	 * helper so we can remove the date/timestamp that Properties#store always 
+	 * puts in the file.
+	 */
+	protected static void write(Properties properties, IPath location) throws BackingStoreException {
+		// create the parent dirs if they don't exist
+		File parentFile = location.toFile().getParentFile();
+		if (parentFile == null)
+			return;
+		parentFile.mkdirs();
+
+		OutputStream output = null;
+		try {
+			output = new BufferedOutputStream(new FileOutputStream(new File(location.toOSString())));
+			output.write(removeTimestampFromTable(properties).getBytes("UTF-8")); //$NON-NLS-1$
+			output.flush();
+		} catch (IOException e) {
+			String message = NLS.bind(PrefsMessages.preferences_saveException, location);
+			log(new Status(IStatus.ERROR, PrefsMessages.OWNER_NAME, IStatus.ERROR, message, e));
+			throw new BackingStoreException(message);
+		} finally {
+			if (output != null)
+				try {
+					output.close();
+				} catch (IOException e) {
+					// ignore
+				}
+		}
+	}
+
+	protected static String removeTimestampFromTable(Properties properties) throws IOException {
+		// store the properties in a string and then skip the first line (date/timestamp)
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		try {
+			properties.store(output, null);
+		} finally {
+			output.close();
+		}
+		String string = output.toString("UTF-8"); //$NON-NLS-1$
+		String separator = System.getProperty("line.separator"); //$NON-NLS-1$
+		return string.substring(string.indexOf(separator) + separator.length());
 	}
 
 	/* 
@@ -986,7 +1065,7 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 		}
 		if (DEBUG_PREFERENCE_GENERAL)
 			PrefsMessages.message("Saving preferences to file: " + location); //$NON-NLS-1$
-		Properties table = convertToProperties(new Properties(), EMPTY_STRING);
+		Properties table = convertToProperties(new SortedProperties(), EMPTY_STRING);
 		if (table.isEmpty()) {
 			// nothing to save. delete existing file if one exists.
 			if (location.toFile().exists() && !location.toFile().delete()) {
@@ -996,32 +1075,7 @@ public class EclipsePreferences implements IEclipsePreferences, IScope {
 			return;
 		}
 		table.put(VERSION_KEY, VERSION_VALUE);
-		OutputStream output = null;
-		FileOutputStream fos = null;
-		try {
-			// create the parent dirs if they don't exist
-			File parentFile = location.toFile().getParentFile();
-			if (parentFile == null)
-				return;
-			parentFile.mkdirs();
-			// set append to be false so we overwrite current settings.
-			fos = new FileOutputStream(location.toOSString(), false);
-			output = new BufferedOutputStream(fos);
-			table.store(output, null);
-			output.flush();
-			fos.getFD().sync();
-		} catch (IOException e) {
-			String message = NLS.bind(PrefsMessages.preferences_saveException, location);
-			log(new Status(IStatus.ERROR, PrefsMessages.OWNER_NAME, IStatus.ERROR, message, e));
-			throw new BackingStoreException(message);
-		} finally {
-			if (output != null)
-				try {
-					output.close();
-				} catch (IOException e) {
-					// ignore
-				}
-		}
+		write(table, location);
 	}
 
 	/**
