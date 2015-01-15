@@ -6,4 +6,4 @@ Bug 416718 - We should update our version of Jetty for SR2
 Bug 436039 - Hard to explain build failure in I20140528-0115
 Bug 436758 - Installing a bundle that requires Java 7 when running 6 with -clean cannot recover
 Bug 457171 - adopt and adjust to new jasper.glassfish bundle from Orbit
-
+Bug 444392 - Update Jetty prereq to 8.1.16.v20140903
