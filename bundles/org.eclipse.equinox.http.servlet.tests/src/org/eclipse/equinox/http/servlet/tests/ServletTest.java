@@ -1194,7 +1194,12 @@ public class ServletTest extends TestCase {
 			}
 
 		};
-		String expected = Thread.currentThread().getContextClassLoader().getClass().getName();
+
+		ClassLoader originalTCCL = Thread.currentThread().getContextClassLoader();
+		ClassLoader dummy = new ClassLoader() {
+		};
+		Thread.currentThread().setContextClassLoader(dummy);
+		String expected = dummy.getClass().getName();
 		String actual = null;
 		ExtendedHttpService extendedHttpService = (ExtendedHttpService)getHttpService();
 		try {
@@ -1204,6 +1209,7 @@ public class ServletTest extends TestCase {
 		} catch (Exception e) {
 			fail("Unexpected exception: " + e);
 		} finally {
+			Thread.currentThread().setContextClassLoader(originalTCCL);
 			try {
 				extendedHttpService.unregister("/tccl");
 				extendedHttpService.unregisterFilter(tcclFilter);
