@@ -139,13 +139,13 @@ public class ServletContextAdaptor {
 
 	public RequestDispatcher getNamedDispatcher(String servletName) {
 		DispatchTargets dispatchTargets = contextController.getDispatchTargets(
-			servletName, null, null, null, null, Match.EXACT, null);
+			null, servletName, null, null, null, null, Match.EXACT, null);
 
 		if (dispatchTargets == null) {
 			return null;
 		}
 
-		return new RequestDispatcherAdaptor(dispatchTargets, servletName);
+		return new NamedDispatcherAdaptor(dispatchTargets);
 	}
 
 	public String getRealPath(final String path) {
@@ -166,22 +166,13 @@ public class ServletContextAdaptor {
 	}
 
 	public RequestDispatcher getRequestDispatcher(String path) {
-		// no relative paths supported, must begin with '/'
-		if (!path.startsWith(Const.SLASH)) {
-			return null;
-		}
-		// if the path starts with the full context path strip it
-		if (path.startsWith(contextController.getFullContextPath())) {
-			path = path.substring(contextController.getFullContextPath().length());
+		if (!path.startsWith(getContextPath())) {
+			path = getContextPath().substring(
+				servletContext.getContextPath().length()).concat(path);
 		}
 
-		DispatchTargets dispatchTargets = contextController.getDispatchTargets(path, null);
-
-		if (dispatchTargets == null) {
-			return null;
-		}
-
-		return new RequestDispatcherAdaptor(dispatchTargets, path);
+		return new RequestDispatcherAdaptor(
+			servletContext.getRequestDispatcher(path));
 	}
 
 	public URL getResource(final String name) {
@@ -296,17 +287,17 @@ public class ServletContextAdaptor {
 
 	public void createFilter(Class<?> arg1) {
 		throw new UnsupportedOperationException();
-	}
+    }
 	public void createServlet(Class<?> arg1) {
 		throw new UnsupportedOperationException();
-	}
-	public void createListener(Class<?> arg1) {
-		throw new UnsupportedOperationException();
-	}
+    }
+    public void createListener(Class<?> arg1) {
+    	throw new UnsupportedOperationException();
+    }
 
-	public void declareRoles(String... arg1) {
-		throw new UnsupportedOperationException();
-	}
+    public void declareRoles(String... arg1) {
+    	throw new UnsupportedOperationException();
+    }
 
 	public void setAttribute(String attributeName, Object attributeValue) {
 		if (attributeValue == null) {

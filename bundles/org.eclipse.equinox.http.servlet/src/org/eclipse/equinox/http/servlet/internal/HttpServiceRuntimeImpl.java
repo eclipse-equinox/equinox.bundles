@@ -23,7 +23,7 @@ import javax.servlet.http.*;
 import org.eclipse.equinox.http.servlet.context.ContextPathCustomizer;
 import org.eclipse.equinox.http.servlet.internal.context.*;
 import org.eclipse.equinox.http.servlet.internal.error.*;
-import org.eclipse.equinox.http.servlet.internal.servlet.Match;
+import org.eclipse.equinox.http.servlet.internal.servlet.*;
 import org.eclipse.equinox.http.servlet.internal.util.*;
 import org.osgi.framework.*;
 import org.osgi.framework.dto.ServiceReferenceDTO;
@@ -162,7 +162,7 @@ public class HttpServiceRuntimeImpl
 		requestInfoDTO.path = path;
 
 		try {
-			getDispatchTargets(path, requestInfoDTO);
+			doDispatch(null, null, path, requestInfoDTO);
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
@@ -196,36 +196,12 @@ public class HttpServiceRuntimeImpl
 		contextPathCustomizerHolder = null;
 	}
 
-	public DispatchTargets getDispatchTargets(
-		String path, RequestInfoDTO requestInfoDTO) {
+	public boolean doDispatch(
+			HttpServletRequest request, HttpServletResponse response,
+			String path)
+		throws ServletException, IOException {
 
-		// perfect match
-		DispatchTargets dispatchTargets = getDispatchTargets(
-			path, null, Match.EXACT, requestInfoDTO);
-
-		if (dispatchTargets == null) {
-			// extension match
-			String extension = Path.findExtension(path);
-
-			dispatchTargets = getDispatchTargets(
-				path, extension, Match.EXTENSION,
-				requestInfoDTO);
-		}
-
-		if (dispatchTargets == null) {
-			// regex match
-			dispatchTargets = getDispatchTargets(
-				path, null, Match.REGEX, requestInfoDTO);
-		}
-
-		if (dispatchTargets == null) {
-			// handle '/' aliases
-			dispatchTargets = getDispatchTargets(
-				path, null, Match.DEFAULT_SERVLET,
-				requestInfoDTO);
-		}
-
-		return dispatchTargets;
+		return doDispatch(request, response, path, null);
 	}
 
 	public Set<Object> getRegisteredObjects() {
@@ -356,23 +332,104 @@ public class HttpServiceRuntimeImpl
 		return legacyIdGenerator.getAndIncrement();
 	}
 
-	public boolean doDispatch(
-			HttpServletRequest request, HttpServletResponse response, String path)
-		throws IOException, ServletException {
+	private boolean doDispatch(
+			HttpServletRequest request, HttpServletResponse response,
+			String path, RequestInfoDTO requestInfoDTO)
+		throws ServletException, IOException {
 
-		DispatchTargets dispatchTargets = getDispatchTargets(path, null);
+		// perfect match
+		if (doDispatch(
+				request, response, path, null, Match.EXACT, requestInfoDTO)) {
 
-		if (dispatchTargets == null) {
+			return true;
+		}
+
+		String extensionAlias = findExtensionAlias(path);
+
+		// extension match
+		if (doDispatch(
+				request, response, path, extensionAlias, Match.EXTENSION,
+				requestInfoDTO)) {
+
+			return true;
+		}
+
+		// regex match
+		if (doDispatch(
+				request, response, path, null, Match.REGEX, requestInfoDTO)) {
+
+			return true;
+		}
+
+		// handle '/' aliases
+		if (doDispatch(
+				request, response, path, null, Match.DEFAULT_SERVLET,
+				requestInfoDTO)) {
+
+			return true;
+		}
+
+		return false;
+	}
+
+	private boolean doDispatch(
+			HttpServletRequest request, HttpServletResponse response,
+			String requestURI, String extension, Match match,
+			RequestInfoDTO requestInfoDTO)
+		throws ServletException, IOException {
+
+		DispatchTargets dispatchTargets = getDispatchTargets(
+			request, requestURI, extension, match, requestInfoDTO);
+
+		if ((dispatchTargets == null) || (requestInfoDTO != null)) {
 			return false;
 		}
 
-		return dispatchTargets.doDispatch(
-			request, response, path, request.getDispatcherType());
+		ContextController contextController =
+			dispatchTargets.getContextController();
+		DispatcherType dispatcherType = DispatcherType.REQUEST;
+
+		if (request.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null) {
+			request.setAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH, contextController.getContextPath());
+			request.setAttribute(RequestDispatcher.INCLUDE_PATH_INFO, dispatchTargets.getPathInfo());
+			request.setAttribute(RequestDispatcher.INCLUDE_QUERY_STRING, request.getQueryString());
+			request.setAttribute(RequestDispatcher.INCLUDE_REQUEST_URI, requestURI);
+			request.setAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH, dispatchTargets.getServletPath());
+
+			dispatcherType = DispatcherType.INCLUDE;
+		}
+		else if (request.getAttribute(RequestDispatcher.FORWARD_REQUEST_URI) != null) {
+			dispatcherType = DispatcherType.FORWARD;
+		}
+
+		HttpServletRequest wrappedRequest = new HttpServletRequestBuilder(
+			request, dispatchTargets).build();
+		HttpServletResponseWrapper wrapperResponse =
+			new HttpServletResponseWrapperImpl(response);
+
+		ResponseStateHandler responseStateHandler = new ResponseStateHandler(
+			wrappedRequest, wrapperResponse, dispatchTargets, dispatcherType);
+
+		responseStateHandler.processRequest();
+
+		return true;
+	}
+
+	private String findExtensionAlias(String alias) {
+		String lastSegment = alias.substring(alias.lastIndexOf('/') + 1);
+
+		int dot = lastSegment.lastIndexOf('.');
+
+		if (dot == -1) {
+			return null;
+		}
+
+		return lastSegment.substring(dot + 1);
 	}
 
 	private DispatchTargets getDispatchTargets(
-		String requestURI, String extension, Match match,
-		RequestInfoDTO requestInfoDTO) {
+		HttpServletRequest request, String requestURI, String extension,
+		Match match, RequestInfoDTO requestInfoDTO) {
 
 		Collection<ContextController> contextControllers = getContextControllers(
 			requestURI);
@@ -400,7 +457,7 @@ public class HttpServiceRuntimeImpl
 			for (ContextController contextController : contextControllers) {
 				DispatchTargets dispatchTargets =
 					contextController.getDispatchTargets(
-						null, requestURI, servletPath, pathInfo,
+						request, null, requestURI, servletPath, pathInfo,
 						extension, match, requestInfoDTO);
 
 				if (dispatchTargets != null) {
@@ -408,7 +465,7 @@ public class HttpServiceRuntimeImpl
 				}
 			}
 
-			if (match == Match.EXACT) {
+			if ((match == Match.EXACT) || (extension != null)) {
 				break;
 			}
 

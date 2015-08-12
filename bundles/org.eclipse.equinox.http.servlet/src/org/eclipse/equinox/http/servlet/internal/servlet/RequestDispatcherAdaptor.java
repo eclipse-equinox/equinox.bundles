@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2015 Cognos Incorporated, IBM Corporation and others.
+ * Copyright (c) 2005, 2014 Cognos Incorporated, IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,37 +14,39 @@ package org.eclipse.equinox.http.servlet.internal.servlet;
 
 import java.io.IOException;
 import javax.servlet.*;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import org.eclipse.equinox.http.servlet.internal.context.DispatchTargets;
+import javax.servlet.http.HttpServletRequestWrapper;
 
 //This class unwraps the request so it can be processed by the underlying servlet container.
 public class RequestDispatcherAdaptor implements RequestDispatcher {
 
-	private final DispatchTargets dispatchTargets;
-	private final String path;
+	private RequestDispatcher requestDispatcher;
 
-	public RequestDispatcherAdaptor(
-		DispatchTargets dispatchTargets, String path) {
-
-		this.dispatchTargets = dispatchTargets;
-		this.path = path;
+	public RequestDispatcherAdaptor(RequestDispatcher requestDispatcher) {
+		this.requestDispatcher = requestDispatcher;
 	}
 
-	public void forward(ServletRequest request, ServletResponse response)
-		throws IOException, ServletException {
+	public void forward(ServletRequest req, ServletResponse resp) throws ServletException, IOException {
+		while (true) {
+			if (req instanceof HttpServletRequestBuilder.RequestGetter) {
+				req = ((HttpServletRequestBuilder.RequestGetter) req).getOriginalRequest();
+				break;
+			}
 
-		dispatchTargets.doDispatch(
-			(HttpServletRequest)request, (HttpServletResponse)response,
-			path, DispatcherType.FORWARD);
+			if (req instanceof HttpServletRequestWrapper) {
+				req = ((HttpServletRequestWrapper)req).getRequest();
+				continue;
+			}
+
+			break;
+		}
+
+		requestDispatcher.forward(req, resp);
 	}
 
-	public void include(ServletRequest request, ServletResponse response)
-		throws IOException, ServletException {
+	public void include(ServletRequest req, ServletResponse resp) throws ServletException, IOException {
+		if (req instanceof HttpServletRequestBuilder.RequestGetter)
+			req = ((HttpServletRequestBuilder.RequestGetter) req).getOriginalRequest();
 
-		dispatchTargets.doDispatch(
-			(HttpServletRequest)request, (HttpServletResponse)response,
-			path, DispatcherType.INCLUDE);
+		requestDispatcher.include(req, resp);
 	}
-
 }

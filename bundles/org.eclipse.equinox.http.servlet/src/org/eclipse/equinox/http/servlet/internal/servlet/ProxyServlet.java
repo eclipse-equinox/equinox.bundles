@@ -67,7 +67,7 @@ public class ProxyServlet extends HttpServlet {
 			alias = Const.SLASH;
 		}
 
-		if (httpServiceRuntimeImpl.doDispatch(request, response, alias)) {
+		if (processAlias(request, response, alias)) {
 			return;
 		}
 
@@ -81,6 +81,14 @@ public class ProxyServlet extends HttpServlet {
 				"Proxy servlet not properly initialized. " +
 					"httpServiceRuntimeImpl is null");
 		}
+	}
+
+	private boolean processAlias(
+			HttpServletRequest request, HttpServletResponse response,
+			String alias)
+		throws ServletException, IOException {
+
+		return httpServiceRuntimeImpl.doDispatch(request, response, alias);
 	}
 
 }
