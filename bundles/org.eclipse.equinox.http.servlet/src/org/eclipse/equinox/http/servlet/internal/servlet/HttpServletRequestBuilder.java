@@ -12,114 +12,45 @@
  *******************************************************************************/
 package org.eclipse.equinox.http.servlet.internal.servlet;
 
-import java.lang.reflect.*;
 import java.util.*;
 import javax.servlet.*;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.*;
+import org.eclipse.equinox.http.servlet.internal.context.ContextController;
 import org.eclipse.equinox.http.servlet.internal.context.DispatchTargets;
-import org.eclipse.equinox.http.servlet.internal.registration.EndpointRegistration;
-import org.eclipse.equinox.http.servlet.internal.util.Const;
-import org.eclipse.equinox.http.servlet.internal.util.EventListeners;
+import org.eclipse.equinox.http.servlet.internal.util.*;
 import org.osgi.service.http.HttpContext;
 
-public class HttpServletRequestBuilder {
+public class HttpServletRequestBuilder extends HttpServletRequestWrapper {
 
-	static interface RequestGetter {
-		HttpServletRequest getOriginalRequest();
-	}
-
-	private DispatchTargets dispatchTargets;
-	private EndpointRegistration<?> servletRegistration;
+	private Stack<DispatchTargets> dispatchTargets = new Stack<DispatchTargets>();
 	private final HttpServletRequest request;
-	private HttpServletRequest requestProxy;
-	private boolean isRequestDispatcherInclude;
+	private final DispatcherType dispatcherType;
+	private Map<String, String[]> parameterMap;
 
 	static final String INCLUDE_REQUEST_URI_ATTRIBUTE = "javax.servlet.include.request_uri"; //$NON-NLS-1$
 	static final String INCLUDE_CONTEXT_PATH_ATTRIBUTE = "javax.servlet.include.context_path"; //$NON-NLS-1$
 	static final String INCLUDE_SERVLET_PATH_ATTRIBUTE = "javax.servlet.include.servlet_path"; //$NON-NLS-1$
 	static final String INCLUDE_PATH_INFO_ATTRIBUTE = "javax.servlet.include.path_info"; //$NON-NLS-1$
 
-	private final ThreadLocal<HttpServletRequest> requestTL = new ThreadLocal<HttpServletRequest>();
+	public static HttpServletRequestBuilder findHttpRuntimeRequest(
+		HttpServletRequest request) {
 
-	private final static Map<Method, Method> requestToHandlerMethods;
-
-	static {
-		requestToHandlerMethods = createContextToHandlerMethods();
-	}
-
-	private static Map<Method, Method> createContextToHandlerMethods() {
-		Map<Method, Method> methods = new HashMap<Method, Method>();
-		Method[] handlerMethods =
-			HttpServletRequestBuilder.class.getDeclaredMethods();
-
-		for (int i = 0; i < handlerMethods.length; i++) {
-			Method handlerMethod = handlerMethods[i];
-			String name = handlerMethod.getName();
-			Class<?>[] parameterTypes = handlerMethod.getParameterTypes();
-
-			try {
-				Method method = HttpServletRequest.class.getMethod(
-					name, parameterTypes);
-				methods.put(method, handlerMethod);
+		while (request instanceof HttpServletRequestWrapper) {
+			if (request instanceof HttpServletRequestBuilder) {
+				return (HttpServletRequestBuilder)request;
 			}
-			catch (NoSuchMethodException e) {
-				// do nothing
-			}
+
+			request = (HttpServletRequest)((HttpServletRequestWrapper)request).getRequest();
 		}
 
-		return methods;
+		return null;
 	}
 
-	public HttpServletRequestBuilder(HttpServletRequest request, DispatchTargets dispatchTargets) {
+	public HttpServletRequestBuilder(HttpServletRequest request, DispatchTargets dispatchTargets, DispatcherType dispatcherType) {
+		super(request);
 		this.request = request;
-		this.dispatchTargets = dispatchTargets;
-		this.servletRegistration = dispatchTargets.getServletRegistration();
-
-		isRequestDispatcherInclude = request.getAttribute(HttpServletRequestBuilder.INCLUDE_REQUEST_URI_ATTRIBUTE) != null;
-
-		this.requestProxy = (HttpServletRequest)Proxy.newProxyInstance(
-			getClass().getClassLoader(),
-			new Class[] {HttpServletRequest.class, RequestGetter.class},
-			new InvocationHandler() {
-
-				@Override
-				public Object invoke(Object proxy, Method method, Object[] args)
-					throws Throwable {
-
-					if (method.getName().equals("getOriginalRequest")) {
-						return getOriginalRequest();
-					}
-
-					return HttpServletRequestBuilder.this.invoke(proxy, method, args);
-				}
-
-			}
-		);
-	}
-
-	public HttpServletRequest build() {
-		return requestProxy;
-	}
-
-	
-	Object invoke(Object proxy, Method method, Object[] args) throws Throwable{
-		requestTL.set((HttpServletRequest)proxy);
-
-		try {
-			Method m = requestToHandlerMethods.get(method);
-			try {
-				if (m != null) {
-					return m.invoke(this, args);
-				}
-				return method.invoke(request, args);
-			} catch (InvocationTargetException e) {
-				throw e.getCause();
-			}
-		}
-		finally {
-			requestTL.remove();
-		}
+		this.dispatchTargets.push(dispatchTargets);
+		this.dispatcherType = dispatcherType;
 	}
 
 	public String getAuthType() {
@@ -139,33 +70,82 @@ public class HttpServletRequestBuilder {
 	}
 
 	public String getPathInfo() {
-		if (isRequestDispatcherInclude)
+		if (dispatcherType == DispatcherType.INCLUDE)
 			return request.getPathInfo();
 
-		return dispatchTargets.getPathInfo();
+		return dispatchTargets.peek().getPathInfo();
+	}
+
+	public DispatcherType getDispatcherType() {
+		return dispatcherType;
+	}
+
+	public String getParameter(String name) {
+		String[] values = getParameterValues(name);
+		if ((values == null) || (values.length == 0)) {
+			return null;
+		}
+		return values[0];
+	}
+
+	public Map<String, String[]> getParameterMap() {
+		if (this.parameterMap != null) {
+			return this.parameterMap;
+		}
+		Map<String, String[]> parameterMap = new HashMap<String, String[]>(this.dispatchTargets.peek().getParameterMap());
+		for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
+			String[] values = parameterMap.get(entry.getKey());
+			if (values == null) {
+				values = new String[0];
+			}
+			values = Params.append(values, entry.getValue());
+			parameterMap.put(entry.getKey(), values);
+		}
+		this.parameterMap = Collections.unmodifiableMap(parameterMap);
+		return this.parameterMap;
+	}
+
+	public Enumeration<String> getParameterNames() {
+		return Collections.enumeration(getParameterMap().keySet());
+	}
+
+	public String[] getParameterValues(String name) {
+		return getParameterMap().get(name);
+	}
+
+	@Override
+	public String getQueryString() {
+		String queryStringA = this.dispatchTargets.peek().getQueryString();
+		String queryStringB = request.getQueryString();
+		if ((queryStringA != null) && (queryStringA.length() > 0) &&
+			(queryStringB != null) && (queryStringB.length() > 0)) {
+
+			return queryStringA + Const.AMP + queryStringB;
+		}
+		return queryStringB;
 	}
 
 	public ServletContext getServletContext() {
-		return servletRegistration.getServletContext();
+		return dispatchTargets.peek().getServletRegistration().getServletContext();
 	}
 
 	public String getServletPath() {
-		if (isRequestDispatcherInclude)
+		if (dispatcherType == DispatcherType.INCLUDE)
 			return request.getServletPath();
 
-		if (dispatchTargets.getServletPath().equals(Const.SLASH)) {
+		if (dispatchTargets.peek().getServletPath().equals(Const.SLASH)) {
 			return Const.BLANK;
 		}
-		return dispatchTargets.getServletPath();
+		return dispatchTargets.peek().getServletPath();
 	}
 
 	public String getContextPath() {
-		return dispatchTargets.getContextController().getFullContextPath();
+		return dispatchTargets.peek().getContextController().getFullContextPath();
 	}
 
 	public Object getAttribute(String attributeName) {
-		String servletPath = dispatchTargets.getServletPath();
-		if (isRequestDispatcherInclude) {
+		String servletPath = dispatchTargets.peek().getServletPath();
+		if (dispatcherType == DispatcherType.INCLUDE) {
 			if (attributeName.equals(HttpServletRequestBuilder.INCLUDE_CONTEXT_PATH_ATTRIBUTE)) {
 				String contextPath = (String) request.getAttribute(HttpServletRequestBuilder.INCLUDE_CONTEXT_PATH_ATTRIBUTE);
 				if (contextPath == null || contextPath.equals(Const.SLASH))
@@ -177,6 +157,10 @@ public class HttpServletRequestBuilder {
 
 				return contextPath + includeServletPath;
 			} else if (attributeName.equals(HttpServletRequestBuilder.INCLUDE_SERVLET_PATH_ATTRIBUTE)) {
+				String attributeServletPath = (String) request.getAttribute(HttpServletRequestBuilder.INCLUDE_SERVLET_PATH_ATTRIBUTE);
+				if (attributeServletPath != null) {
+					return attributeServletPath;
+				}
 				if (servletPath.equals(Const.SLASH)) {
 					return Const.BLANK;
 				}
@@ -206,23 +190,36 @@ public class HttpServletRequestBuilder {
 	}
 
 	public RequestDispatcher getRequestDispatcher(String path) {
-		if (!path.startsWith(getContextPath())) {
-			path = getContextPath().substring(
-				request.getContextPath().length()).concat(path);
+		ContextController contextController =
+			this.dispatchTargets.peek().getContextController();
+
+		// support relative paths
+		if (!path.startsWith(Const.SLASH)) {
+			path = this.dispatchTargets.peek().getServletPath() + Const.SLASH + path;
+		}
+		// if the path starts with the full context path strip it
+		else if (path.startsWith(contextController.getFullContextPath())) {
+			path = path.substring(contextController.getFullContextPath().length());
 		}
 
-		return new RequestDispatcherAdaptor(request.getRequestDispatcher(path));
+		DispatchTargets requestedDispatchTargets = contextController.getDispatchTargets(path, null);
+
+		if (requestedDispatchTargets == null) {
+			return null;
+		}
+
+		return new RequestDispatcherAdaptor(requestedDispatchTargets, path);
 	}
 
 	public static String getDispatchPathInfo(HttpServletRequest req) {
-		if (req.getAttribute(INCLUDE_REQUEST_URI_ATTRIBUTE) != null)
+		if (req.getDispatcherType() == DispatcherType.INCLUDE)
 			return (String) req.getAttribute(INCLUDE_PATH_INFO_ATTRIBUTE);
 
 		return req.getPathInfo();
 	}
 
 	public static String getDispatchServletPath(HttpServletRequest req) {
-		if (req.getAttribute(INCLUDE_REQUEST_URI_ATTRIBUTE) != null) {
+		if (req.getDispatcherType() == DispatcherType.INCLUDE) {
 			String servletPath = (String) req.getAttribute(INCLUDE_SERVLET_PATH_ATTRIBUTE);
 			return (servletPath == null) ? Const.BLANK : servletPath;
 		}
@@ -232,8 +229,8 @@ public class HttpServletRequestBuilder {
 	public HttpSession getSession() {
 		HttpSession session = request.getSession();
 		if (session != null) {
-			return dispatchTargets.getContextController().getSessionAdaptor(
-				session, servletRegistration.getT().getServletConfig().getServletContext());
+			return dispatchTargets.peek().getContextController().getSessionAdaptor(
+				session, dispatchTargets.peek().getServletRegistration().getT().getServletConfig().getServletContext());
 		}
 
 		return null;
@@ -242,17 +239,29 @@ public class HttpServletRequestBuilder {
 	public HttpSession getSession(boolean create) {
 		HttpSession session = request.getSession(create);
 		if (session != null) {
-			return dispatchTargets.getContextController().getSessionAdaptor(
-				session, servletRegistration.getT().getServletConfig().getServletContext());
+			return dispatchTargets.peek().getContextController().getSessionAdaptor(
+				session, dispatchTargets.peek().getServletRegistration().getT().getServletConfig().getServletContext());
 		}
 
 		return null;
 	}
 
+	public synchronized void pop() {
+		this.dispatchTargets.pop();
+		this.parameterMap = null;
+		getParameterMap();
+	}
+
+	public synchronized void push(DispatchTargets dispatchTargets) {
+		this.dispatchTargets.push(dispatchTargets);
+		this.parameterMap = null;
+		getParameterMap();
+	}
+
 	public void removeAttribute(String name) {
 		request.removeAttribute(name);
 
-		EventListeners eventListeners = dispatchTargets.getContextController().getEventListeners();
+		EventListeners eventListeners = dispatchTargets.peek().getContextController().getEventListeners();
 
 		List<ServletRequestAttributeListener> listeners = eventListeners.get(
 			ServletRequestAttributeListener.class);
@@ -263,7 +272,7 @@ public class HttpServletRequestBuilder {
 
 		ServletRequestAttributeEvent servletRequestAttributeEvent =
 			new ServletRequestAttributeEvent(
-				servletRegistration.getServletContext(), requestProxy, name, null);
+				dispatchTargets.peek().getServletRegistration().getServletContext(), this, name, null);
 
 		for (ServletRequestAttributeListener servletRequestAttributeListener : listeners) {
 			servletRequestAttributeListener.attributeRemoved(
@@ -275,7 +284,7 @@ public class HttpServletRequestBuilder {
 		boolean added = (request.getAttribute(name) == null);
 		request.setAttribute(name, value);
 
-		EventListeners eventListeners = dispatchTargets.getContextController().getEventListeners();
+		EventListeners eventListeners = dispatchTargets.peek().getContextController().getEventListeners();
 
 		List<ServletRequestAttributeListener> listeners = eventListeners.get(
 			ServletRequestAttributeListener.class);
@@ -286,7 +295,7 @@ public class HttpServletRequestBuilder {
 
 		ServletRequestAttributeEvent servletRequestAttributeEvent =
 			new ServletRequestAttributeEvent(
-				servletRegistration.getServletContext(), requestProxy, name, value);
+				dispatchTargets.peek().getServletRegistration().getServletContext(), this, name, value);
 
 		for (ServletRequestAttributeListener servletRequestAttributeListener : listeners) {
 			if (added) {
@@ -298,10 +307,6 @@ public class HttpServletRequestBuilder {
 					servletRequestAttributeEvent);
 			}
 		}
-	}
-
-	HttpServletRequest getOriginalRequest() {
-		return request;
 	}
 
 }

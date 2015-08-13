@@ -14,8 +14,10 @@ package org.eclipse.equinox.http.servlet.tests;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -61,8 +63,6 @@ import javax.servlet.http.HttpSessionEvent;
 import javax.servlet.http.HttpSessionIdListener;
 import javax.servlet.http.HttpSessionListener;
 
-import junit.framework.TestCase;
-
 import org.eclipse.equinox.http.servlet.ExtendedHttpService;
 import org.eclipse.equinox.http.servlet.context.ContextPathCustomizer;
 import org.eclipse.equinox.http.servlet.tests.bundle.Activator;
@@ -91,6 +91,7 @@ import org.osgi.framework.ServiceFactory;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.framework.hooks.service.FindHook;
+import org.osgi.service.http.HttpContext;
 import org.osgi.service.http.HttpService;
 import org.osgi.service.http.NamespaceException;
 import org.osgi.service.http.context.ServletContextHelper;
@@ -100,6 +101,8 @@ import org.osgi.service.http.runtime.dto.RuntimeDTO;
 import org.osgi.service.http.runtime.dto.ServletContextDTO;
 import org.osgi.service.http.runtime.dto.ServletDTO;
 import org.osgi.service.http.whiteboard.HttpWhiteboardConstants;
+
+import junit.framework.TestCase;
 
 public class ServletTest extends TestCase {
 
@@ -765,7 +768,7 @@ public class ServletTest extends TestCase {
 		Assert.assertEquals(expected, actual);
 		Assert.assertTrue("testFilter1 did not get called.", testFilter1.getCalled());
 		Assert.assertTrue("testFilter2 did not get called.", testFilter2.getCalled());
-	
+
 		testFilter1.clear();
 		testFilter2.clear();
 		actual = requestAdvisor.request("hello/test");
@@ -777,17 +780,37 @@ public class ServletTest extends TestCase {
 
 
 	public void basicFilterTest22( String servlet1Pattern, String servlet2Pattern, String filterPattern, String expected, String[] dispatchers ) throws Exception {
+		final AtomicReference<HttpServletRequestWrapper> httpServletRequestWrapper = new AtomicReference<HttpServletRequestWrapper>();
+		final AtomicReference<HttpServletResponseWrapper> httpServletResponseWrapper = new AtomicReference<HttpServletResponseWrapper>();
+
 		Servlet servlet1 = new BaseServlet() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
 					throws ServletException, IOException {
-				request.getRequestDispatcher("/f22/index.jsp").forward(request, response);
+				request.getRequestDispatcher("index.jsp").forward(request, response);
 			}
 		};
 
-		Servlet servlet2 = new BaseServlet("a");
+		Servlet servlet2 = new BaseServlet("a") {
+
+			@Override
+			protected void service(
+				HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+				if ((httpServletRequestWrapper.get() != null) && !request.equals(httpServletRequestWrapper.get())) {
+					throw new ServletException("not the same request");
+				}
+				if ((httpServletResponseWrapper.get() != null) && !response.equals(httpServletResponseWrapper.get())) {
+					throw new ServletException("not the same response");
+				}
+
+				response.getWriter().print(content);
+			}
+
+		};
 
 		Filter filter = new TestFilter() {
 
@@ -798,9 +821,10 @@ public class ServletTest extends TestCase {
 
 				response.getWriter().write('b');
 
-				chain.doFilter(
-					new HttpServletRequestWrapper((HttpServletRequest) request),
-					new HttpServletResponseWrapper((HttpServletResponse) response));
+				httpServletRequestWrapper.set(new HttpServletRequestWrapper((HttpServletRequest) request));
+				httpServletResponseWrapper.set(new HttpServletResponseWrapper((HttpServletResponse) response));
+
+				chain.doFilter(httpServletRequestWrapper.get(), httpServletResponseWrapper.get());
 
 				response.getWriter().write('b');
 			}
@@ -1510,16 +1534,39 @@ public class ServletTest extends TestCase {
 	}
 
 	public void test_Servlet8() throws Exception {
-		String expected = "Equinox Jetty-based Http Service";
-		String actual;
-		Bundle bundle = installBundle(ServletTest.TEST_BUNDLE_1);
-		try {
-			bundle.start();
-			actual = requestAdvisor.request("TestServlet8");
-		} finally {
-			uninstallBundle(bundle);
-		}
-		Assert.assertEquals(expected, actual);
+		Servlet servlet8 = new HttpServlet() {
+
+			@Override
+			protected void service(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+				RequestDispatcher requestDispatcher =
+					request.getRequestDispatcher("/S8/target");
+
+				requestDispatcher.include(request, response);
+			}
+
+		};
+
+		Servlet servlet8Target = new HttpServlet() {
+
+			@Override
+			protected void service(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+				response.getWriter().print("s8target");
+			}
+
+		};
+
+		HttpService httpService = getHttpService();
+
+		HttpContext httpContext = httpService.createDefaultHttpContext();
+
+		httpService.registerServlet("/S8", servlet8, null, httpContext);
+		httpService.registerServlet("/S8/target", servlet8Target, null, httpContext);
+
+		Assert.assertEquals("s8target", requestAdvisor.request("S8"));
 	}
 
 	public void test_Servlet9() throws Exception {
@@ -1559,6 +1606,163 @@ public class ServletTest extends TestCase {
 			uninstallBundle(bundle);
 		}
 		Assert.assertEquals(expected, actual);
+	}
+
+	public void test_Servlet12() throws Exception {
+		Servlet sA = new HttpServlet() {
+
+			@Override
+			protected void service(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+				response.getWriter().write('a');
+			}
+
+		};
+
+		Servlet sB = new HttpServlet() {
+
+			@Override
+			protected void service(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+				response.getWriter().write('b');
+			}
+
+		};
+
+		HttpService httpService = getHttpService();
+
+		HttpContext httpContext = httpService.createDefaultHttpContext();
+
+		httpService.registerServlet("*.txt", sA, null, httpContext);
+		httpService.registerServlet("/files/*.txt", sB, null, httpContext);
+
+		Assert.assertEquals("b", requestAdvisor.request("files/help.txt"));
+	}
+
+	public void test_Servlet13() throws Exception {
+		Servlet servlet = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void doGet(
+				HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+
+				PrintWriter writer = resp.getWriter();
+				writer.write(req.getQueryString());
+				writer.write("|");
+				writer.write(req.getParameter("p"));
+				writer.write("|");
+				writer.write(Arrays.toString(req.getParameterValues("p")));
+			}
+		};
+
+		Dictionary<String, Object> props = new Hashtable<String, Object>();
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME, "S13");
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN, "/Servlet13/*");
+		registrations.add(getBundleContext().registerService(Servlet.class, servlet, props));
+
+		String result = requestAdvisor.request("Servlet13/a?p=1&p=2");
+
+		Assert.assertEquals("p=1&p=2|1|[1, 2]", result);
+	}
+
+	public void test_Servlet14() throws Exception {
+		Servlet sA = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void doGet(
+				HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+
+				RequestDispatcher requestDispatcher = req.getRequestDispatcher("/Servlet13B/a?p=3&p=4");
+
+				requestDispatcher.include(req, resp);
+			}
+		};
+		Servlet sB = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void doGet(
+				HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+
+				PrintWriter writer = resp.getWriter();
+				writer.write(req.getQueryString());
+				writer.write("|");
+				writer.write((String)req.getAttribute(RequestDispatcher.INCLUDE_QUERY_STRING));
+				writer.write("|");
+				writer.write(req.getParameter("p"));
+				writer.write("|");
+				writer.write(Arrays.toString(req.getParameterValues("p")));
+			}
+		};
+
+		Dictionary<String, Object> props = new Hashtable<String, Object>();
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME, "S13A");
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN, "/Servlet13A/*");
+		registrations.add(getBundleContext().registerService(Servlet.class, sA, props));
+
+		props = new Hashtable<String, Object>();
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME, "S13B");
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN, "/Servlet13B/*");
+		registrations.add(getBundleContext().registerService(Servlet.class, sB, props));
+
+		String result = requestAdvisor.request("Servlet13A/a?p=1&p=2");
+
+		Assert.assertEquals("p=3&p=4&p=1&p=2|p=3&p=4|3|[3, 4, 1, 2]", result);
+	}
+
+	public void test_Servlet15() throws Exception {
+		Servlet sA = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void doGet(
+				HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+
+				RequestDispatcher requestDispatcher = req.getRequestDispatcher("/Servlet13B/a?p=3&p=4");
+
+				requestDispatcher.forward(req, resp);
+			}
+		};
+		Servlet sB = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void doGet(
+				HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+
+				PrintWriter writer = resp.getWriter();
+				writer.write(req.getQueryString());
+				writer.write("|");
+				writer.write((String)req.getAttribute(RequestDispatcher.FORWARD_QUERY_STRING));
+				writer.write("|");
+				writer.write(req.getParameter("p"));
+				writer.write("|");
+				writer.write(Arrays.toString(req.getParameterValues("p")));
+			}
+		};
+
+		Dictionary<String, Object> props = new Hashtable<String, Object>();
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME, "S13A");
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN, "/Servlet13A/*");
+		registrations.add(getBundleContext().registerService(Servlet.class, sA, props));
+
+		props = new Hashtable<String, Object>();
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME, "S13B");
+		props.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN, "/Servlet13B/*");
+		registrations.add(getBundleContext().registerService(Servlet.class, sB, props));
+
+		String result = requestAdvisor.request("Servlet13A/a?p=1&p=2");
+
+		Assert.assertEquals("p=3&p=4&p=1&p=2|p=1&p=2|3|[3, 4, 1, 2]", result);
 	}
 
 	public void test_ServletContext1() throws Exception {
@@ -1954,7 +2158,7 @@ public class ServletTest extends TestCase {
 				request.setAttribute(getName(), Boolean.TRUE);
 				return super.handleSecurity(request, response);
 			}
-			
+
 		};
 		Filter f1 = new Filter() {
 
@@ -1974,7 +2178,7 @@ public class ServletTest extends TestCase {
 			@Override
 			public void destroy() {
 			}
-			
+
 		};
 		Servlet s1 = new HttpServlet() {
 			private static final long serialVersionUID = 1L;
@@ -1982,7 +2186,7 @@ public class ServletTest extends TestCase {
 			public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
 				res.getWriter().print(req.getAttribute(getName() + ".fromFilter"));
 			}
-			
+
 		};
 
 		Collection<ServiceRegistration<?>> registrations = new ArrayList<ServiceRegistration<?>>();
