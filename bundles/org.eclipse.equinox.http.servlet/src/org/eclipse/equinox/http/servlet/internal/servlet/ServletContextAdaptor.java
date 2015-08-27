@@ -79,7 +79,6 @@ public class ServletContextAdaptor {
 		this.contextController = contextController;
 		this.proxyContext = contextController.getProxyContext();
 		this.servletContext = proxyContext.getServletContext();
-		this.contextName = contextController.getContextName();
 		this.servletContextHelper = servletContextHelper;
 		this.eventListeners = eventListeners;
 		this.acc = acc;
@@ -88,6 +87,8 @@ public class ServletContextAdaptor {
 		BundleWiring bundleWiring = this.bundle.adapt(BundleWiring.class);
 
 		this.classLoader = bundleWiring.getClassLoader();
+
+		this.string = getClass().getSimpleName() + '[' + contextController + ']';
 	}
 
 	public ServletContext createServletContext() {
@@ -273,7 +274,7 @@ public class ServletContextAdaptor {
 	}
 
 	public String getServletContextName() {
-		return contextName;
+		return contextController.getContextName();
 	}
 
 	public int hashCode() {
@@ -379,6 +380,10 @@ public class ServletContextAdaptor {
 		}
 	}
 
+	public String toString() {
+		return string;
+	}
+
 	Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		servletContextTL.set((ServletContext)proxy);
 
@@ -426,5 +431,6 @@ public class ServletContextAdaptor {
 	private final ServletContext servletContext;
 	final ServletContextHelper servletContextHelper;
 	private final ThreadLocal<ServletContext> servletContextTL = new ThreadLocal<ServletContext>();
+	private final String string;
 
 }
