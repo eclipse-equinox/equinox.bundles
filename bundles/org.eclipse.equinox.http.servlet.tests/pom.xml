@@ -42,13 +42,13 @@
                 </requirement>
                 <requirement>
                    <type>eclipse-plugin</type>
-                   <id>org.eclipse.equinox.http.servlet</id>
-                   <versionRange>[1.2.2,1.2.100)</versionRange>
+                   <id>org.eclipse.equinox.http.jetty</id>
+                   <versionRange>[3.1.0,3.2.0)</versionRange>
                 </requirement>
                 <requirement>
                    <type>eclipse-plugin</type>
-                   <id>org.eclipse.equinox.http.jetty</id>
-                   <versionRange>[3.1.0,3.2.0)</versionRange>
+                   <id>org.eclipse.equinox.http.servlet</id>
+                   <versionRange>[1.2.2,1.2.100)</versionRange>
                 </requirement>
              </extraRequirements>
           </dependency-resolution>
