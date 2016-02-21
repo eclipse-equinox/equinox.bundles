@@ -141,7 +141,7 @@ public class ContextController {
 		this.trackingContext = trackingContextParam;
 		this.consumingContext = consumingContext;
 
-		this.string = getClass().getSimpleName() + '[' + contextName + ", " + consumingContext.getBundle() + ']'; //$NON-NLS-1$
+		this.string = getClass().getSimpleName() + '[' + contextName + ", " + trackingContextParam.getBundle() + ']'; //$NON-NLS-1$
 
 		listenerServiceTracker = new ServiceTracker<EventListener, AtomicReference<ListenerRegistration>>(
 			trackingContext, httpServiceRuntime.getListenerFilter(),
