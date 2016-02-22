@@ -11,6 +11,7 @@
 
 package org.eclipse.equinox.http.servlet.internal.context;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -63,21 +64,23 @@ public class DispatchTargets {
 			String path, DispatcherType dispatcherType)
 		throws ServletException, IOException {
 
+		RequestAttributeSetter setter = new RequestAttributeSetter(request);
+
 		if (dispatcherType == DispatcherType.INCLUDE) {
-			request.setAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH, contextController.getContextPath());
-			request.setAttribute(RequestDispatcher.INCLUDE_PATH_INFO, getPathInfo());
-			request.setAttribute(RequestDispatcher.INCLUDE_QUERY_STRING, getQueryString());
-			request.setAttribute(RequestDispatcher.INCLUDE_REQUEST_URI, getRequestURI());
-			request.setAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH, getServletPath());
+			setter.setAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH, contextController.getContextPath());
+			setter.setAttribute(RequestDispatcher.INCLUDE_PATH_INFO, getPathInfo());
+			setter.setAttribute(RequestDispatcher.INCLUDE_QUERY_STRING, getQueryString());
+			setter.setAttribute(RequestDispatcher.INCLUDE_REQUEST_URI, getRequestURI());
+			setter.setAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH, getServletPath());
 		}
 		else if (dispatcherType == DispatcherType.FORWARD) {
 			response.resetBuffer();
 
-			request.setAttribute(RequestDispatcher.FORWARD_CONTEXT_PATH, request.getContextPath());
-			request.setAttribute(RequestDispatcher.FORWARD_PATH_INFO, request.getPathInfo());
-			request.setAttribute(RequestDispatcher.FORWARD_QUERY_STRING, request.getQueryString());
-			request.setAttribute(RequestDispatcher.FORWARD_REQUEST_URI, request.getRequestURI());
-			request.setAttribute(RequestDispatcher.FORWARD_SERVLET_PATH, request.getServletPath());
+			setter.setAttribute(RequestDispatcher.FORWARD_CONTEXT_PATH, request.getContextPath());
+			setter.setAttribute(RequestDispatcher.FORWARD_PATH_INFO, request.getPathInfo());
+			setter.setAttribute(RequestDispatcher.FORWARD_QUERY_STRING, request.getQueryString());
+			setter.setAttribute(RequestDispatcher.FORWARD_REQUEST_URI, request.getRequestURI());
+			setter.setAttribute(RequestDispatcher.FORWARD_SERVLET_PATH, request.getServletPath());
 		}
 
 		HttpServletRequestWrapperImpl httpRuntimeRequest = HttpServletRequestWrapperImpl.findHttpRuntimeRequest(request);
@@ -112,6 +115,8 @@ public class DispatchTargets {
 			if (pushedState) {
 				httpRuntimeRequest.pop();
 			}
+
+			setter.close();
 		}
 	}
 
@@ -175,6 +180,33 @@ public class DispatchTargets {
 		}
 		catch (UnsupportedEncodingException unsupportedEncodingException) {
 			throw new RuntimeException(unsupportedEncodingException);
+		}
+	}
+
+	private static class RequestAttributeSetter implements Closeable {
+
+		private final ServletRequest servletRequest;
+		private final Map<String, Object> oldValues = new HashMap<String, Object>();
+
+		public RequestAttributeSetter(ServletRequest servletRequest) {
+			this.servletRequest = servletRequest;
+		}
+
+		public void setAttribute(String name, Object value) {
+			oldValues.put(name, servletRequest.getAttribute(name));
+
+			servletRequest.setAttribute(name, value);
+		}
+
+		public void close() {
+			for (Map.Entry<String, Object> oldValue : oldValues.entrySet()) {
+				if (oldValue.getValue() == null) {
+					servletRequest.removeAttribute(oldValue.getKey());
+				}
+				else {
+					servletRequest.setAttribute(oldValue.getKey(), oldValue.getValue());
+				}
+			}
 		}
 	}
 
