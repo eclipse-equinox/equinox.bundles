@@ -106,10 +106,17 @@ import org.osgi.service.http.whiteboard.HttpWhiteboardConstants;
 
 import junit.framework.TestCase;
 
+@SuppressWarnings("restriction")
 public class ServletTest extends TestCase {
 
 	@Override
 	public void setUp() throws Exception {
+		// Quiet logging for tests
+		System.setProperty("/.LEVEL", "OFF");
+		System.setProperty("org.eclipse.jetty.server.LEVEL", "OFF");
+		System.setProperty("org.eclipse.jetty.servlet.LEVEL", "OFF");
+
+		System.setProperty("org.osgi.service.http.port", "8090");
 		BundleContext bundleContext = getBundleContext();
 		installer = new BundleInstaller(ServletTest.TEST_BUNDLES_BINARY_DIRECTORY, bundleContext);
 		advisor = new BundleAdvisor(bundleContext);
@@ -796,6 +803,7 @@ public class ServletTest extends TestCase {
 		};
 
 		Servlet servlet2 = new BaseServlet("a") {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(
@@ -1657,6 +1665,7 @@ public class ServletTest extends TestCase {
 
 	public void test_Servlet8() throws Exception {
 		Servlet servlet8 = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -1671,6 +1680,7 @@ public class ServletTest extends TestCase {
 		};
 
 		Servlet servlet8Target = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -1732,6 +1742,7 @@ public class ServletTest extends TestCase {
 
 	public void test_Servlet12() throws Exception {
 		Servlet sA = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -1743,6 +1754,7 @@ public class ServletTest extends TestCase {
 		};
 
 		Servlet sB = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -1889,6 +1901,7 @@ public class ServletTest extends TestCase {
 
 	public void test_ServletExactMatchPrecidence() throws Exception {
 		Servlet sA = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -1900,6 +1913,7 @@ public class ServletTest extends TestCase {
 		};
 
 		Servlet sB = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
 
 			@Override
 			protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -2143,23 +2157,49 @@ public class ServletTest extends TestCase {
 	}
 
 	public void test_ServletContextHelper1() throws Exception {
-		Bundle bundle = installBundle(ServletTest.TEST_BUNDLE_1);
-		try {
-			bundle.start();
-			BundleContext bundleContext = getBundleContext();
-			ServiceReference<HttpServiceRuntime> serviceReference =
-				bundleContext.getServiceReference(HttpServiceRuntime.class);
-			HttpServiceRuntime runtime = bundleContext.getService(serviceReference);
+		BundleContext bundleContext = getBundleContext();
+		Bundle bundle = bundleContext.getBundle();
 
-			RuntimeDTO runtimeDTO = runtime.getRuntimeDTO();
-			Assert.assertEquals(4, runtimeDTO.failedServletContextDTOs.length);
-			bundle.stop();
+		ServletContextHelper servletContextHelper = new ServletContextHelper(bundle){};
+		Dictionary<String, String> contextProps = new Hashtable<String, String>();
+		registrations.add(bundleContext.registerService(ServletContextHelper.class, servletContextHelper, contextProps));
 
-			runtimeDTO = runtime.getRuntimeDTO();
-			Assert.assertEquals(0, runtimeDTO.failedServletContextDTOs.length);
-		} finally {
-			uninstallBundle(bundle);
+		servletContextHelper = new ServletContextHelper(bundle){};
+		contextProps = new Hashtable<String, String>();
+		contextProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_CONTEXT_NAME, "test.sch.one");
+		registrations.add(bundleContext.registerService(ServletContextHelper.class, servletContextHelper, contextProps));
+
+		servletContextHelper = new ServletContextHelper(bundle){};
+		contextProps = new Hashtable<String, String>();
+		contextProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_CONTEXT_PATH, "/test-sch2");
+		registrations.add(bundleContext.registerService(ServletContextHelper.class, servletContextHelper, contextProps));
+
+		servletContextHelper = new ServletContextHelper(bundle){};
+		contextProps = new Hashtable<String, String>();
+		contextProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_CONTEXT_NAME, "Test SCH 3!");
+		contextProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_CONTEXT_PATH, "/test-sch3");
+		registrations.add(bundleContext.registerService(ServletContextHelper.class, servletContextHelper, contextProps));
+
+		servletContextHelper = new ServletContextHelper(bundle){};
+		contextProps = new Hashtable<String, String>();
+		contextProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_CONTEXT_NAME, "test.sch.four");
+		contextProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_CONTEXT_PATH, "test$sch$4");
+		registrations.add(bundleContext.registerService(ServletContextHelper.class, servletContextHelper, contextProps));
+
+		ServiceReference<HttpServiceRuntime> serviceReference =
+			bundleContext.getServiceReference(HttpServiceRuntime.class);
+		HttpServiceRuntime runtime = bundleContext.getService(serviceReference);
+
+		RuntimeDTO runtimeDTO = runtime.getRuntimeDTO();
+		Assert.assertEquals(5, runtimeDTO.failedServletContextDTOs.length);
+
+		for (ServiceRegistration<?> registration : registrations) {
+			registration.unregister();
 		}
+		registrations.clear();
+
+		runtimeDTO = runtime.getRuntimeDTO();
+		Assert.assertEquals(0, runtimeDTO.failedServletContextDTOs.length);
 	}
 
 	public void test_ServletContextHelper7() throws Exception {
