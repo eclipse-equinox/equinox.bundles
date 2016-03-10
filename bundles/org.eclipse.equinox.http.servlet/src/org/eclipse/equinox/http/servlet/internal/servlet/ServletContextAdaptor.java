@@ -425,7 +425,6 @@ public class ServletContextAdaptor {
 	private final Bundle bundle;
 	private final ClassLoader classLoader;
 	final ContextController contextController;
-	private final String contextName;
 	private final EventListeners eventListeners;
 	private final ProxyContext proxyContext;
 	private final ServletContext servletContext;
