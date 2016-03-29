@@ -17,15 +17,33 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 import org.eclipse.equinox.http.servlet.internal.context.ContextController;
 import org.eclipse.equinox.http.servlet.internal.context.DispatchTargets;
-import org.eclipse.equinox.http.servlet.internal.util.*;
+import org.eclipse.equinox.http.servlet.internal.util.Const;
+import org.eclipse.equinox.http.servlet.internal.util.EventListeners;
 import org.osgi.service.http.HttpContext;
 
 public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
 	private Stack<DispatchTargets> dispatchTargets = new Stack<DispatchTargets>();
 	private final HttpServletRequest request;
-	private final DispatcherType dispatcherType;
-	private Map<String, String[]> parameterMap;
+
+	private static final String[] dispatcherAttributes = new String[] {
+		RequestDispatcher.ERROR_EXCEPTION,
+		RequestDispatcher.ERROR_EXCEPTION_TYPE,
+		RequestDispatcher.ERROR_MESSAGE,
+		RequestDispatcher.ERROR_REQUEST_URI,
+		RequestDispatcher.ERROR_SERVLET_NAME,
+		RequestDispatcher.ERROR_STATUS_CODE,
+		RequestDispatcher.FORWARD_CONTEXT_PATH,
+		RequestDispatcher.FORWARD_PATH_INFO,
+		RequestDispatcher.FORWARD_QUERY_STRING,
+		RequestDispatcher.FORWARD_REQUEST_URI,
+		RequestDispatcher.FORWARD_SERVLET_PATH,
+		RequestDispatcher.INCLUDE_CONTEXT_PATH,
+		RequestDispatcher.INCLUDE_PATH_INFO,
+		RequestDispatcher.INCLUDE_QUERY_STRING,
+		RequestDispatcher.INCLUDE_REQUEST_URI,
+		RequestDispatcher.INCLUDE_SERVLET_PATH
+	};
 
 	public static HttpServletRequestWrapperImpl findHttpRuntimeRequest(
 		HttpServletRequest request) {
@@ -41,11 +59,10 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 		return null;
 	}
 
-	public HttpServletRequestWrapperImpl(HttpServletRequest request, DispatchTargets dispatchTargets, DispatcherType dispatcherType) {
+	public HttpServletRequestWrapperImpl(HttpServletRequest request, DispatchTargets dispatchTargets) {
 		super(request);
 		this.request = request;
 		this.dispatchTargets.push(dispatchTargets);
-		this.dispatcherType = dispatcherType;
 	}
 
 	public String getAuthType() {
@@ -65,14 +82,15 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public String getPathInfo() {
-		if (dispatcherType == DispatcherType.INCLUDE)
-			return request.getPathInfo();
-
-		return dispatchTargets.peek().getPathInfo();
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
+			return this.dispatchTargets.get(0).getPathInfo();
+		}
+		return this.dispatchTargets.peek().getPathInfo();
 	}
 
 	public DispatcherType getDispatcherType() {
-		return dispatcherType;
+		return dispatchTargets.peek().getDispatcherType();
 	}
 
 	public String getParameter(String name) {
@@ -84,17 +102,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public Map<String, String[]> getParameterMap() {
-		if (this.parameterMap != null) {
-			return this.parameterMap;
-		}
-		Map<String, String[]> copy = new HashMap<String, String[]>(this.dispatchTargets.peek().getParameterMap());
-		for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
-			String[] values = copy.get(entry.getKey());
-			values = Params.append(values, entry.getValue());
-			copy.put(entry.getKey(), values);
-		}
-		this.parameterMap = Collections.unmodifiableMap(copy);
-		return this.parameterMap;
+		return dispatchTargets.peek().getParameterMap();
 	}
 
 	public Enumeration<String> getParameterNames() {
@@ -107,14 +115,20 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
 	@Override
 	public String getQueryString() {
-		String queryStringA = this.dispatchTargets.peek().getQueryString();
-		String queryStringB = request.getQueryString();
-		if ((queryStringA != null) && (queryStringA.length() > 0) &&
-			(queryStringB != null) && (queryStringB.length() > 0)) {
-
-			return queryStringA + Const.AMP + queryStringB;
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
+			return ((HttpServletRequest)getRequest()).getQueryString();
 		}
-		return queryStringB;
+		return this.dispatchTargets.peek().getQueryString();
+	}
+
+	@Override
+	public String getRequestURI() {
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
+			return ((HttpServletRequest)getRequest()).getRequestURI();
+		}
+		return this.dispatchTargets.peek().getRequestURI();
 	}
 
 	public ServletContext getServletContext() {
@@ -122,13 +136,14 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public String getServletPath() {
-		if (dispatcherType == DispatcherType.INCLUDE)
-			return request.getServletPath();
-
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
+			return this.dispatchTargets.get(0).getServletPath();
+		}
 		if (dispatchTargets.peek().getServletPath().equals(Const.SLASH)) {
 			return Const.BLANK;
 		}
-		return dispatchTargets.peek().getServletPath();
+		return this.dispatchTargets.peek().getServletPath();
 	}
 
 	public String getContextPath() {
@@ -136,45 +151,80 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public Object getAttribute(String attributeName) {
-		String servletPath = dispatchTargets.peek().getServletPath();
-		if (dispatcherType == DispatcherType.INCLUDE) {
+		DispatchTargets current = dispatchTargets.peek();
+
+		if (current.getDispatcherType() == DispatcherType.INCLUDE) {
 			if (attributeName.equals(RequestDispatcher.INCLUDE_CONTEXT_PATH)) {
-				String contextPath = (String) request.getAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH);
-				if (contextPath == null || contextPath.equals(Const.SLASH))
-					contextPath = Const.BLANK;
-
-				String includeServletPath = (String) request.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH);
-				if (includeServletPath == null || includeServletPath.equals(Const.SLASH))
-					includeServletPath = Const.BLANK;
-
-				return contextPath + includeServletPath;
-			} else if (attributeName.equals(RequestDispatcher.INCLUDE_SERVLET_PATH)) {
-				String attributeServletPath = (String) request.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH);
-				if (attributeServletPath != null) {
-					return attributeServletPath;
-				}
-				if (servletPath.equals(Const.SLASH)) {
-					return Const.BLANK;
-				}
-				return servletPath;
-			} else if (attributeName.equals(RequestDispatcher.INCLUDE_PATH_INFO)) {
-				String pathInfoAttribute = (String) request.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO);
-				if (servletPath.equals(Const.SLASH)) {
-					return pathInfoAttribute;
-				}
-
-				if ((pathInfoAttribute == null) || (pathInfoAttribute.length() == 0)) {
+				if (current.getServletName() != null) {
 					return null;
 				}
-
-				if (pathInfoAttribute.startsWith(servletPath)) {
-					pathInfoAttribute = pathInfoAttribute.substring(servletPath.length());
-				}
-
-				if (pathInfoAttribute.length() == 0)
+				return current.getContextController().getContextPath();
+			}
+			else if (attributeName.equals(RequestDispatcher.INCLUDE_PATH_INFO)) {
+				if (current.getServletName() != null) {
 					return null;
+				}
+				return current.getPathInfo();
+			}
+			else if (attributeName.equals(RequestDispatcher.INCLUDE_QUERY_STRING)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return current.getQueryString();
+			}
+			else if (attributeName.equals(RequestDispatcher.INCLUDE_REQUEST_URI)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return current.getRequestURI();
+			}
+			else if (attributeName.equals(RequestDispatcher.INCLUDE_SERVLET_PATH)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return current.getServletPath();
+			}
 
-				return pathInfoAttribute;
+			if (Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) {
+				return null;
+			}
+		}
+		else if (current.getDispatcherType() == DispatcherType.FORWARD) {
+			DispatchTargets original = dispatchTargets.get(0);
+
+			if (attributeName.equals(RequestDispatcher.FORWARD_CONTEXT_PATH)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return original.getContextController().getContextPath();
+			}
+			else if (attributeName.equals(RequestDispatcher.FORWARD_PATH_INFO)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return original.getPathInfo();
+			}
+			else if (attributeName.equals(RequestDispatcher.FORWARD_QUERY_STRING)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return original.getQueryString();
+			}
+			else if (attributeName.equals(RequestDispatcher.FORWARD_REQUEST_URI)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return original.getRequestURI();
+			}
+			else if (attributeName.equals(RequestDispatcher.FORWARD_SERVLET_PATH)) {
+				if (current.getServletName() != null) {
+					return null;
+				}
+				return original.getServletPath();
+			}
+
+			if (Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) {
+				return null;
 			}
 		}
 
@@ -240,14 +290,11 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
 	public synchronized void pop() {
 		this.dispatchTargets.pop();
-		this.parameterMap = null;
-		getParameterMap();
 	}
 
 	public synchronized void push(DispatchTargets toPush) {
+		toPush.addRequestParameters(request);
 		this.dispatchTargets.push(toPush);
-		this.parameterMap = null;
-		getParameterMap();
 	}
 
 	public void removeAttribute(String name) {

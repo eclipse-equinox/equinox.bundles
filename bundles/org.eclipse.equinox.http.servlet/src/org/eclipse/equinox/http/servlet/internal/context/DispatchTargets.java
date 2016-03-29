@@ -11,9 +11,7 @@
 
 package org.eclipse.equinox.http.servlet.internal.context;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
 import java.util.*;
 import javax.servlet.*;
@@ -32,37 +30,52 @@ public class DispatchTargets {
 
 	public DispatchTargets(
 		ContextController contextController,
-		EndpointRegistration<?> endpointRegistration,
+		EndpointRegistration<?> endpointRegistration, String servletName,
 		String requestURI, String servletPath, String pathInfo, String queryString) {
 
 		this(
 			contextController, endpointRegistration,
-			Collections.<FilterRegistration>emptyList(), requestURI, servletPath, pathInfo,
-			queryString);
+			Collections.<FilterRegistration>emptyList(), servletName, requestURI,
+			servletPath, pathInfo, queryString);
 	}
 
 	public DispatchTargets(
 		ContextController contextController,
 		EndpointRegistration<?> endpointRegistration,
-		List<FilterRegistration> matchingFilterRegistrations,
+		List<FilterRegistration> matchingFilterRegistrations, String servletName,
 		String requestURI, String servletPath, String pathInfo, String queryString) {
 
 		this.contextController = contextController;
 		this.endpointRegistration = endpointRegistration;
 		this.matchingFilterRegistrations = matchingFilterRegistrations;
+		this.servletName = servletName;
 		this.requestURI = requestURI;
-		this.servletPath = servletPath;
+		this.servletPath = (servletPath == null) ? Const.BLANK : servletPath;
 		this.pathInfo = pathInfo;
 		this.parameterMap = queryStringToParameterMap(queryString);
 		this.queryString = queryString;
 
-		this.string = getClass().getSimpleName() + '[' + contextController.getFullContextPath() + requestURI + ", " + endpointRegistration.toString() + ']'; //$NON-NLS-1$
+		this.string = getClass().getSimpleName() + '[' + contextController.getFullContextPath() + requestURI + (queryString != null ? '?' + queryString : "") + ", " + endpointRegistration.toString() + ']'; //$NON-NLS-1$
+	}
+
+	public void addRequestParameters(HttpServletRequest request) {
+		Map<String, String[]> parameterMapCopy = new HashMap<String, String[]>(parameterMap);
+
+		for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
+			String[] values = parameterMapCopy.get(entry.getKey());
+			values = Params.append(values, entry.getValue());
+			parameterMapCopy.put(entry.getKey(), values);
+		}
+
+		parameterMap = parameterMapCopy;
 	}
 
 	public boolean doDispatch(
 			HttpServletRequest request, HttpServletResponse response,
-			String path, DispatcherType dispatcherType)
+			String path, DispatcherType requestedDispatcherType)
 		throws ServletException, IOException {
+
+		this.dispatcherType = requestedDispatcherType;
 
 		RequestAttributeSetter setter = new RequestAttributeSetter(request);
 
@@ -88,7 +101,7 @@ public class DispatchTargets {
 
 		try {
 			if (httpRuntimeRequest == null) {
-				httpRuntimeRequest = new HttpServletRequestWrapperImpl(request, this, dispatcherType);
+				httpRuntimeRequest = new HttpServletRequestWrapperImpl(request, this);
 				request = httpRuntimeRequest;
 				response = new HttpServletResponseWrapperImpl(response);
 			}
@@ -124,6 +137,10 @@ public class DispatchTargets {
 		return contextController;
 	}
 
+	public DispatcherType getDispatcherType() {
+		return dispatcherType;
+	}
+
 	public List<FilterRegistration> getMatchingFilterRegistrations() {
 		return matchingFilterRegistrations;
 	}
@@ -141,7 +158,14 @@ public class DispatchTargets {
 	}
 
 	public String getRequestURI() {
-		return requestURI;
+		if (requestURI == null) {
+			return null;
+		}
+		return getContextController().getFullContextPath() + requestURI;
+	}
+
+	public String getServletName() {
+		return servletName;
 	}
 
 	public String getServletPath() {
@@ -211,13 +235,15 @@ public class DispatchTargets {
 	}
 
 	private final ContextController contextController;
+	private DispatcherType dispatcherType;
 	private final EndpointRegistration<?> endpointRegistration;
 	private final List<FilterRegistration> matchingFilterRegistrations;
 	private final String pathInfo;
-	private final Map<String, String[]> parameterMap;
+	private Map<String, String[]> parameterMap;
 	private final String queryString;
 	private final String requestURI;
 	private final String servletPath;
+	private final String servletName;
 	private final String string;
 
 }
