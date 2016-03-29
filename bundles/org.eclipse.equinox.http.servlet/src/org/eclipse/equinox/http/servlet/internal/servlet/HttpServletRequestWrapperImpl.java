@@ -23,7 +23,7 @@ import org.osgi.service.http.HttpContext;
 
 public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
-	private Stack<DispatchTargets> dispatchTargets = new Stack<DispatchTargets>();
+	private final Stack<DispatchTargets> dispatchTargets = new Stack<DispatchTargets>();
 	private final HttpServletRequest request;
 
 	private static final String[] dispatcherAttributes = new String[] {
@@ -59,10 +59,9 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 		return null;
 	}
 
-	public HttpServletRequestWrapperImpl(HttpServletRequest request, DispatchTargets dispatchTargets) {
+	public HttpServletRequestWrapperImpl(HttpServletRequest request) {
 		super(request);
 		this.request = request;
-		this.dispatchTargets.push(dispatchTargets);
 	}
 
 	public String getAuthType() {
@@ -117,7 +116,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public String getQueryString() {
 		if ((dispatchTargets.peek().getServletName() != null) ||
 			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
-			return ((HttpServletRequest)getRequest()).getQueryString();
+			return request.getQueryString();
 		}
 		return this.dispatchTargets.peek().getQueryString();
 	}
@@ -126,7 +125,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public String getRequestURI() {
 		if ((dispatchTargets.peek().getServletName() != null) ||
 			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
-			return ((HttpServletRequest)getRequest()).getRequestURI();
+			return request.getRequestURI();
 		}
 		return this.dispatchTargets.peek().getRequestURI();
 	}
@@ -153,7 +152,15 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public Object getAttribute(String attributeName) {
 		DispatchTargets current = dispatchTargets.peek();
 
-		if (current.getDispatcherType() == DispatcherType.INCLUDE) {
+
+		if (current.getDispatcherType() == DispatcherType.ERROR) {
+			if ((Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) &&
+				!attributeName.startsWith("javax.servlet.error.")) { //$NON-NLS-1$
+
+				return null;
+			}
+		}
+		else if (current.getDispatcherType() == DispatcherType.INCLUDE) {
 			if (attributeName.equals(RequestDispatcher.INCLUDE_CONTEXT_PATH)) {
 				if (current.getServletName() != null) {
 					return null;
@@ -260,14 +267,6 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 		return req.getPathInfo();
 	}
 
-	public static String getDispatchServletPath(HttpServletRequest req) {
-		if (req.getDispatcherType() == DispatcherType.INCLUDE) {
-			String servletPath = (String) req.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH);
-			return (servletPath == null) ? Const.BLANK : servletPath;
-		}
-		return req.getServletPath();
-	}
-
 	public HttpSession getSession() {
 		HttpSession session = request.getSession();
 		if (session != null) {
@@ -293,7 +292,9 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public synchronized void push(DispatchTargets toPush) {
-		toPush.addRequestParameters(request);
+		if (dispatchTargets.size() > 0) {
+			toPush.addRequestParameters(request);
+		}
 		this.dispatchTargets.push(toPush);
 	}
 

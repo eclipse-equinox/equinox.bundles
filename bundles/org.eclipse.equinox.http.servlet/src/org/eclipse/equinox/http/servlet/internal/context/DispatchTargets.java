@@ -71,13 +71,13 @@ public class DispatchTargets {
 	}
 
 	public boolean doDispatch(
-			HttpServletRequest request, HttpServletResponse response,
+			HttpServletRequest originalRequest, HttpServletResponse response,
 			String path, DispatcherType requestedDispatcherType)
 		throws ServletException, IOException {
 
-		this.dispatcherType = requestedDispatcherType;
+		setDispatcherType(requestedDispatcherType);
 
-		RequestAttributeSetter setter = new RequestAttributeSetter(request);
+		RequestAttributeSetter setter = new RequestAttributeSetter(originalRequest);
 
 		if (dispatcherType == DispatcherType.INCLUDE) {
 			setter.setAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH, contextController.getContextPath());
@@ -89,29 +89,26 @@ public class DispatchTargets {
 		else if (dispatcherType == DispatcherType.FORWARD) {
 			response.resetBuffer();
 
-			setter.setAttribute(RequestDispatcher.FORWARD_CONTEXT_PATH, request.getContextPath());
-			setter.setAttribute(RequestDispatcher.FORWARD_PATH_INFO, request.getPathInfo());
-			setter.setAttribute(RequestDispatcher.FORWARD_QUERY_STRING, request.getQueryString());
-			setter.setAttribute(RequestDispatcher.FORWARD_REQUEST_URI, request.getRequestURI());
-			setter.setAttribute(RequestDispatcher.FORWARD_SERVLET_PATH, request.getServletPath());
+			setter.setAttribute(RequestDispatcher.FORWARD_CONTEXT_PATH, originalRequest.getContextPath());
+			setter.setAttribute(RequestDispatcher.FORWARD_PATH_INFO, originalRequest.getPathInfo());
+			setter.setAttribute(RequestDispatcher.FORWARD_QUERY_STRING, originalRequest.getQueryString());
+			setter.setAttribute(RequestDispatcher.FORWARD_REQUEST_URI, originalRequest.getRequestURI());
+			setter.setAttribute(RequestDispatcher.FORWARD_SERVLET_PATH, originalRequest.getServletPath());
 		}
 
-		HttpServletRequestWrapperImpl httpRuntimeRequest = HttpServletRequestWrapperImpl.findHttpRuntimeRequest(request);
-		boolean pushedState = false;
+		HttpServletRequest request = originalRequest;
+		HttpServletRequestWrapperImpl httpRuntimeRequest = HttpServletRequestWrapperImpl.findHttpRuntimeRequest(originalRequest);
 
 		try {
 			if (httpRuntimeRequest == null) {
-				httpRuntimeRequest = new HttpServletRequestWrapperImpl(request, this);
+				httpRuntimeRequest = new HttpServletRequestWrapperImpl(originalRequest);
 				request = httpRuntimeRequest;
 				response = new HttpServletResponseWrapperImpl(response);
 			}
-			else {
-				httpRuntimeRequest.push(this);
-				pushedState = true;
-			}
 
-			ResponseStateHandler responseStateHandler = new ResponseStateHandler(
-				request, response, this, dispatcherType);
+			httpRuntimeRequest.push(this);
+
+			ResponseStateHandler responseStateHandler = new ResponseStateHandler(request, response, this);
 
 			responseStateHandler.processRequest();
 
@@ -125,9 +122,7 @@ public class DispatchTargets {
 			return true;
 		}
 		finally {
-			if (pushedState) {
-				httpRuntimeRequest.pop();
-			}
+			httpRuntimeRequest.pop();
 
 			setter.close();
 		}
@@ -174,6 +169,10 @@ public class DispatchTargets {
 
 	public EndpointRegistration<?> getServletRegistration() {
 		return endpointRegistration;
+	}
+
+	public void setDispatcherType(DispatcherType dispatcherType) {
+		this.dispatcherType = dispatcherType;
 	}
 
 	@Override
