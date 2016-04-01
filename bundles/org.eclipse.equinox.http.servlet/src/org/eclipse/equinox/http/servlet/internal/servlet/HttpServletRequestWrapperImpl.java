@@ -152,7 +152,6 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public Object getAttribute(String attributeName) {
 		DispatchTargets current = dispatchTargets.peek();
 
-
 		if (current.getDispatcherType() == DispatcherType.ERROR) {
 			if ((Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) &&
 				!attributeName.startsWith("javax.servlet.error.")) { //$NON-NLS-1$
@@ -165,11 +164,17 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				if (current.getServletName() != null) {
 					return null;
 				}
+				if (super.getAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH) != null) {
+					return super.getAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH);
+				}
 				return current.getContextController().getContextPath();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_PATH_INFO)) {
 				if (current.getServletName() != null) {
 					return null;
+				}
+				if (super.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO) != null) {
+					return super.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO);
 				}
 				return current.getPathInfo();
 			}
@@ -177,17 +182,26 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				if (current.getServletName() != null) {
 					return null;
 				}
+				if (super.getAttribute(RequestDispatcher.INCLUDE_QUERY_STRING) != null) {
+					return super.getAttribute(RequestDispatcher.INCLUDE_QUERY_STRING);
+				}
 				return current.getQueryString();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_REQUEST_URI)) {
 				if (current.getServletName() != null) {
 					return null;
 				}
+				if (super.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null) {
+					return super.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI);
+				}
 				return current.getRequestURI();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_SERVLET_PATH)) {
 				if (current.getServletName() != null) {
 					return null;
+				}
+				if (super.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH) != null) {
+					return super.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH);
 				}
 				return current.getServletPath();
 			}
@@ -288,13 +302,13 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public synchronized void pop() {
-		this.dispatchTargets.pop();
+		if (dispatchTargets.size() > 1) {
+			this.dispatchTargets.pop();
+		}
 	}
 
 	public synchronized void push(DispatchTargets toPush) {
-		if (dispatchTargets.size() > 0) {
-			toPush.addRequestParameters(request);
-		}
+		toPush.addRequestParameters(request);
 		this.dispatchTargets.push(toPush);
 	}
 

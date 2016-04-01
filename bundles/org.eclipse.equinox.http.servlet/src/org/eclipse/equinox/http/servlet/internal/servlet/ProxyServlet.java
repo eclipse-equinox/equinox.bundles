@@ -67,12 +67,6 @@ public class ProxyServlet extends HttpServlet {
 			alias = Const.SLASH;
 		}
 
-		String queryString = request.getQueryString();
-
-		if (queryString != null) {
-			alias += '?' + queryString;
-		}
-
 		if (httpServiceRuntimeImpl.doDispatch(request, response, alias)) {
 			return;
 		}

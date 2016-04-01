@@ -52,14 +52,20 @@ public class DispatchTargets {
 		this.requestURI = requestURI;
 		this.servletPath = (servletPath == null) ? Const.BLANK : servletPath;
 		this.pathInfo = pathInfo;
-		this.parameterMap = queryStringToParameterMap(queryString);
 		this.queryString = queryString;
 
 		this.string = getClass().getSimpleName() + '[' + contextController.getFullContextPath() + requestURI + (queryString != null ? '?' + queryString : "") + ", " + endpointRegistration.toString() + ']'; //$NON-NLS-1$
 	}
 
 	public void addRequestParameters(HttpServletRequest request) {
-		Map<String, String[]> parameterMapCopy = new HashMap<String, String[]>(parameterMap);
+		if (queryString == null) {
+			parameterMap = request.getParameterMap();
+			queryString = request.getQueryString();
+
+			return;
+		}
+
+		Map<String, String[]> parameterMapCopy = queryStringToParameterMap(queryString);
 
 		for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
 			String[] values = parameterMapCopy.get(entry.getKey());
@@ -67,7 +73,7 @@ public class DispatchTargets {
 			parameterMapCopy.put(entry.getKey(), values);
 		}
 
-		parameterMap = parameterMapCopy;
+		parameterMap = Collections.unmodifiableMap(parameterMapCopy);
 	}
 
 	public boolean doDispatch(
@@ -182,7 +188,7 @@ public class DispatchTargets {
 
 	private static Map<String, String[]> queryStringToParameterMap(String queryString) {
 		if ((queryString == null) || (queryString.length() == 0)) {
-			return Collections.emptyMap();
+			return new HashMap<String, String[]>();
 		}
 
 		try {
@@ -199,7 +205,7 @@ public class DispatchTargets {
 				values = Params.append(values, value);
 				parameterMap.put(name, values);
 			}
-			return Collections.unmodifiableMap(parameterMap);
+			return parameterMap;
 		}
 		catch (UnsupportedEncodingException unsupportedEncodingException) {
 			throw new RuntimeException(unsupportedEncodingException);
@@ -239,7 +245,7 @@ public class DispatchTargets {
 	private final List<FilterRegistration> matchingFilterRegistrations;
 	private final String pathInfo;
 	private Map<String, String[]> parameterMap;
-	private final String queryString;
+	private String queryString;
 	private final String requestURI;
 	private final String servletPath;
 	private final String servletName;
