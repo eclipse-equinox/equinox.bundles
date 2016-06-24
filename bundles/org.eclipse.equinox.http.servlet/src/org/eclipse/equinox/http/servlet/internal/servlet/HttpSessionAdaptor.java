@@ -43,8 +43,33 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 				innerSessionsToInvalidate = new HashSet<HttpSessionAdaptor>(innerSessions);
 				innerSessions.clear();
 			}
+
 			for (HttpSessionAdaptor innerSession : innerSessionsToInvalidate) {
-				innerSession.invalidate();
+				ContextController contextController =
+					innerSession.getController();
+
+				EventListeners eventListeners =
+					contextController.getEventListeners();
+
+				List<HttpSessionListener> httpSessionListeners =
+					eventListeners.get(HttpSessionListener.class);
+
+				if (!httpSessionListeners.isEmpty()) {
+					HttpSessionEvent httpSessionEvent = new HttpSessionEvent(
+						innerSession);
+
+					for (HttpSessionListener listener : httpSessionListeners) {
+						try {
+							listener.sessionDestroyed(httpSessionEvent);
+						}
+						catch (IllegalStateException ise) {
+							// outer session is already invalidated
+						}
+					}
+				}
+
+				contextController.removeActiveSession(
+					innerSession.getSession());
 			}
 		}
 
