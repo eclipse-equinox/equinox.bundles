@@ -385,7 +385,13 @@ public class ServletContextAdaptor {
 	}
 
 	Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-		servletContextTL.set((ServletContext)proxy);
+		boolean useThreadLocal =
+			"removeAttribute".equals(method.getName()) ||
+			"setAttribute".equals(method.getName());
+
+		if (useThreadLocal) {
+			servletContextTL.set((ServletContext)proxy);
+		}
 
 		try {
 			Method m = contextToHandlerMethods.get(method);
@@ -399,7 +405,9 @@ public class ServletContextAdaptor {
 			}
 		}
 		finally {
-			servletContextTL.remove();
+			if (useThreadLocal) {
+				servletContextTL.remove();
+			}
 		}
 	}
 
