@@ -192,7 +192,7 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 		this.controller = controller;
 		this.attributePrefix = "equinox.http." + controller.getContextName(); //$NON-NLS-1$
 
-		this.string = getClass().getSimpleName() + '[' + session.getId() + ", " + attributePrefix + ']'; //$NON-NLS-1$
+		this.string = SIMPLE_NAME + '[' + session.getId() + ", " + attributePrefix + ']'; //$NON-NLS-1$
 	}
 
 	public ContextController getController() {
@@ -337,4 +337,8 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 	public String toString() {
 		return string;
 	}
+
+	private static final String SIMPLE_NAME =
+		HttpSessionAdaptor.class.getSimpleName();
+
 }

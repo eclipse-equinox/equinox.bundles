@@ -54,7 +54,7 @@ public class DispatchTargets {
 		this.pathInfo = pathInfo;
 		this.queryString = queryString;
 
-		this.string = getClass().getSimpleName() + '[' + contextController.getFullContextPath() + requestURI + (queryString != null ? '?' + queryString : "") + ", " + endpointRegistration.toString() + ']'; //$NON-NLS-1$
+		this.string = SIMPLE_NAME + '[' + contextController.getFullContextPath() + requestURI + (queryString != null ? '?' + queryString : "") + ", " + endpointRegistration.toString() + ']'; //$NON-NLS-1$
 	}
 
 	public void addRequestParameters(HttpServletRequest request) {
@@ -238,6 +238,9 @@ public class DispatchTargets {
 			}
 		}
 	}
+
+	private static final String SIMPLE_NAME =
+		DispatchTargets.class.getSimpleName();
 
 	private final ContextController contextController;
 	private DispatcherType dispatcherType;

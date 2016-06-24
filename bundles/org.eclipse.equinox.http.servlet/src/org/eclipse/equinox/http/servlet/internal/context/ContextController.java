@@ -141,7 +141,7 @@ public class ContextController {
 		this.trackingContext = trackingContextParam;
 		this.consumingContext = consumingContext;
 
-		this.string = getClass().getSimpleName() + '[' + contextName + ", " + trackingContextParam.getBundle() + ']'; //$NON-NLS-1$
+		this.string = SIMPLE_NAME + '[' + contextName + ", " + trackingContextParam.getBundle() + ']'; //$NON-NLS-1$
 
 		listenerServiceTracker = new ServiceTracker<EventListener, AtomicReference<ListenerRegistration>>(
 			trackingContext, httpServiceRuntime.getListenerFilter(),
@@ -1231,6 +1231,8 @@ public class ContextController {
 
 	private static final String[] DISPATCHER =
 		new String[] {DispatcherType.REQUEST.toString()};
+
+	private static final String SIMPLE_NAME = ContextController.class.getSimpleName();
 
 	private static final Pattern contextNamePattern = Pattern.compile("^([a-zA-Z_0-9\\-]+\\.)*[a-zA-Z_0-9\\-]+$"); //$NON-NLS-1$
 
