@@ -421,6 +421,8 @@ public class ServletContextAdaptor {
 		}
 	}
 
+	private final static ThreadLocal<ServletContext> servletContextTL = new ThreadLocal<ServletContext>();
+
 	private final AccessControlContext acc;
 	private final Bundle bundle;
 	private final ClassLoader classLoader;
@@ -429,7 +431,6 @@ public class ServletContextAdaptor {
 	private final ProxyContext proxyContext;
 	private final ServletContext servletContext;
 	final ServletContextHelper servletContextHelper;
-	private final ThreadLocal<ServletContext> servletContextTL = new ThreadLocal<ServletContext>();
 	private final String string;
 
 }
