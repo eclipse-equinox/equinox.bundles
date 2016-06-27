@@ -1168,7 +1168,7 @@ public class ContextController {
 	}
 
 	public void removeActiveSession(HttpSession session) {
-		activeSessions.remove(session);
+		activeSessions.remove(session.getId());
 	}
 
 	public void fireSessionIdChanged(String oldSessionId) {
@@ -1194,7 +1194,9 @@ public class ContextController {
 	public HttpSessionAdaptor getSessionAdaptor(
 		HttpSession session, ServletContext servletContext) {
 
-		HttpSessionAdaptor httpSessionAdaptor = activeSessions.get(session);
+		String sessionId = session.getId();
+
+		HttpSessionAdaptor httpSessionAdaptor = activeSessions.get(sessionId);
 
 		if (httpSessionAdaptor != null) {
 			return httpSessionAdaptor;
@@ -1204,7 +1206,7 @@ public class ContextController {
 			session, servletContext, this);
 
 		HttpSessionAdaptor previousHttpSessionAdaptor =
-			activeSessions.putIfAbsent(session, httpSessionAdaptor);
+			activeSessions.putIfAbsent(sessionId, httpSessionAdaptor);
 
 		if (previousHttpSessionAdaptor != null) {
 			return previousHttpSessionAdaptor;
@@ -1256,7 +1258,7 @@ public class ContextController {
 	private final Set<EndpointRegistration<?>> endpointRegistrations = new ConcurrentSkipListSet<EndpointRegistration<?>>();
 	private final EventListeners eventListeners = new EventListeners();
 	private final Set<FilterRegistration> filterRegistrations = new ConcurrentSkipListSet<FilterRegistration>();
-	private final ConcurrentMap<HttpSession, HttpSessionAdaptor> activeSessions = new ConcurrentHashMap<HttpSession, HttpSessionAdaptor>();
+	private final ConcurrentMap<String, HttpSessionAdaptor> activeSessions = new ConcurrentHashMap<String, HttpSessionAdaptor>();
 
 	private final HttpServiceRuntimeImpl httpServiceRuntime;
 	private final Set<ListenerRegistration> listenerRegistrations = new HashSet<ListenerRegistration>();
