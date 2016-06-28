@@ -170,45 +170,65 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				if (hasServletName) {
 					return null;
 				}
-				if (super.getAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH) != null) {
-					return super.getAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH);
+
+				Object attributeValue = super.getAttribute(attributeName);
+
+				if (attributeValue != null) {
+					return attributeValue;
 				}
+
 				return current.getContextController().getContextPath();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_PATH_INFO)) {
 				if (hasServletName) {
 					return null;
 				}
-				if (super.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO) != null) {
-					return super.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO);
+
+				Object attributeValue = super.getAttribute(attributeName);
+
+				if (attributeValue != null) {
+					return attributeValue;
 				}
+
 				return current.getPathInfo();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_QUERY_STRING)) {
 				if (hasServletName) {
 					return null;
 				}
-				if (super.getAttribute(RequestDispatcher.INCLUDE_QUERY_STRING) != null) {
-					return super.getAttribute(RequestDispatcher.INCLUDE_QUERY_STRING);
+
+				Object attributeValue = super.getAttribute(attributeName);
+
+				if (attributeValue != null) {
+					return attributeValue;
 				}
+
 				return current.getQueryString();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_REQUEST_URI)) {
 				if (hasServletName) {
 					return null;
 				}
-				if (super.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null) {
-					return super.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI);
+
+				Object attributeValue = super.getAttribute(attributeName);
+
+				if (attributeValue != null) {
+					return attributeValue;
 				}
+
 				return current.getRequestURI();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_SERVLET_PATH)) {
 				if (hasServletName) {
 					return null;
 				}
-				if (super.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH) != null) {
-					return super.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH);
+
+				Object attributeValue = super.getAttribute(attributeName);
+
+				if (attributeValue != null) {
+					return attributeValue;
 				}
+
 				return current.getServletPath();
 			}
 
