@@ -307,15 +307,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public HttpSession getSession() {
-		HttpSession session = request.getSession();
-		if (session != null) {
-			DispatchTargets currentDispatchTarget = dispatchTargets.peek();
-
-			return currentDispatchTarget.getContextController().getSessionAdaptor(
-				session, currentDispatchTarget.getServletRegistration().getT().getServletConfig().getServletContext());
-		}
-
-		return null;
+		return getSession(true);
 	}
 
 	public HttpSession getSession(boolean create) {
