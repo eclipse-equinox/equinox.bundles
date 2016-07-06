@@ -83,13 +83,11 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public String getPathInfo() {
-		DispatchTargets currentDispatchTargets = dispatchTargets.peek();
-
-		if ((currentDispatchTargets.getServletName() != null) ||
-			(currentDispatchTargets.getDispatcherType() == DispatcherType.INCLUDE)) {
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
 			return this.dispatchTargets.get(0).getPathInfo();
 		}
-		return currentDispatchTargets.getPathInfo();
+		return this.dispatchTargets.peek().getPathInfo();
 	}
 
 	public DispatcherType getDispatcherType() {
@@ -118,24 +116,20 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
 	@Override
 	public String getQueryString() {
-		DispatchTargets currentDispatchTargets = dispatchTargets.peek();
-
-		if ((currentDispatchTargets.getServletName() != null) ||
-			(currentDispatchTargets.getDispatcherType() == DispatcherType.INCLUDE)) {
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
 			return request.getQueryString();
 		}
-		return currentDispatchTargets.getQueryString();
+		return this.dispatchTargets.peek().getQueryString();
 	}
 
 	@Override
 	public String getRequestURI() {
-		DispatchTargets currentDispatchTargets = dispatchTargets.peek();
-
-		if ((currentDispatchTargets.getServletName() != null) ||
-			(currentDispatchTargets.getDispatcherType() == DispatcherType.INCLUDE)) {
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
 			return request.getRequestURI();
 		}
-		return currentDispatchTargets.getRequestURI();
+		return this.dispatchTargets.peek().getRequestURI();
 	}
 
 	public ServletContext getServletContext() {
@@ -143,16 +137,14 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public String getServletPath() {
-		DispatchTargets currentDispatchTargets = dispatchTargets.peek();
-
-		if ((currentDispatchTargets.getServletName() != null) ||
-			(currentDispatchTargets.getDispatcherType() == DispatcherType.INCLUDE)) {
+		if ((dispatchTargets.peek().getServletName() != null) ||
+			(dispatchTargets.peek().getDispatcherType() == DispatcherType.INCLUDE)) {
 			return this.dispatchTargets.get(0).getServletPath();
 		}
-		if (currentDispatchTargets.getServletPath().equals(Const.SLASH)) {
+		if (dispatchTargets.peek().getServletPath().equals(Const.SLASH)) {
 			return Const.BLANK;
 		}
-		return currentDispatchTargets.getServletPath();
+		return this.dispatchTargets.peek().getServletPath();
 	}
 
 	public String getContextPath() {
@@ -276,14 +268,12 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	}
 
 	public RequestDispatcher getRequestDispatcher(String path) {
-		DispatchTargets currentDispatchTarget = dispatchTargets.peek();
-
 		ContextController contextController =
-			currentDispatchTarget.getContextController();
+			this.dispatchTargets.peek().getContextController();
 
 		// support relative paths
 		if (!path.startsWith(Const.SLASH)) {
-			path = currentDispatchTarget.getServletPath() + Const.SLASH + path;
+			path = this.dispatchTargets.peek().getServletPath() + Const.SLASH + path;
 		}
 		// if the path starts with the full context path strip it
 		else if (path.startsWith(contextController.getFullContextPath())) {
@@ -309,10 +299,8 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public HttpSession getSession() {
 		HttpSession session = request.getSession();
 		if (session != null) {
-			DispatchTargets currentDispatchTarget = dispatchTargets.peek();
-
-			return currentDispatchTarget.getContextController().getSessionAdaptor(
-				session, currentDispatchTarget.getServletRegistration().getT().getServletConfig().getServletContext());
+			return dispatchTargets.peek().getContextController().getSessionAdaptor(
+				session, dispatchTargets.peek().getServletRegistration().getT().getServletConfig().getServletContext());
 		}
 
 		return null;
@@ -321,10 +309,8 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public HttpSession getSession(boolean create) {
 		HttpSession session = request.getSession(create);
 		if (session != null) {
-			DispatchTargets currentDispatchTarget = dispatchTargets.peek();
-
-			return currentDispatchTarget.getContextController().getSessionAdaptor(
-				session, currentDispatchTarget.getServletRegistration().getT().getServletConfig().getServletContext());
+			return dispatchTargets.peek().getContextController().getSessionAdaptor(
+				session, dispatchTargets.peek().getServletRegistration().getT().getServletConfig().getServletContext());
 		}
 
 		return null;
@@ -344,9 +330,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public void removeAttribute(String name) {
 		request.removeAttribute(name);
 
-		DispatchTargets currentDispatchTarget = dispatchTargets.peek();
-
-		EventListeners eventListeners = currentDispatchTarget.getContextController().getEventListeners();
+		EventListeners eventListeners = dispatchTargets.peek().getContextController().getEventListeners();
 
 		List<ServletRequestAttributeListener> listeners = eventListeners.get(
 			ServletRequestAttributeListener.class);
@@ -357,7 +341,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
 		ServletRequestAttributeEvent servletRequestAttributeEvent =
 			new ServletRequestAttributeEvent(
-				currentDispatchTarget.getServletRegistration().getServletContext(), this, name, null);
+				dispatchTargets.peek().getServletRegistration().getServletContext(), this, name, null);
 
 		for (ServletRequestAttributeListener servletRequestAttributeListener : listeners) {
 			servletRequestAttributeListener.attributeRemoved(
@@ -369,9 +353,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 		boolean added = (request.getAttribute(name) == null);
 		request.setAttribute(name, value);
 
-		DispatchTargets currentDispatchTarget = dispatchTargets.peek();
-
-		EventListeners eventListeners = currentDispatchTarget.getContextController().getEventListeners();
+		EventListeners eventListeners = dispatchTargets.peek().getContextController().getEventListeners();
 
 		List<ServletRequestAttributeListener> listeners = eventListeners.get(
 			ServletRequestAttributeListener.class);
@@ -382,7 +364,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 
 		ServletRequestAttributeEvent servletRequestAttributeEvent =
 			new ServletRequestAttributeEvent(
-				currentDispatchTarget.getServletRegistration().getServletContext(), this, name, value);
+				dispatchTargets.peek().getServletRegistration().getServletContext(), this, name, value);
 
 		for (ServletRequestAttributeListener servletRequestAttributeListener : listeners) {
 			if (added) {
