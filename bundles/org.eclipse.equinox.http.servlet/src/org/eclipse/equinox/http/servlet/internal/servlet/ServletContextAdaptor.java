@@ -88,7 +88,7 @@ public class ServletContextAdaptor {
 
 		this.classLoader = bundleWiring.getClassLoader();
 
-		this.string = SIMPLE_NAME + '[' + contextController + ']';
+		this.string = getClass().getSimpleName() + '[' + contextController + ']';
 	}
 
 	public ServletContext createServletContext() {
@@ -428,9 +428,6 @@ public class ServletContextAdaptor {
 			return ServletContextAdaptor.this.invoke(proxy, method, args);
 		}
 	}
-
-	private final static String SIMPLE_NAME =
-		ServletContextAdaptor.class.getSimpleName();
 
 	private final static ThreadLocal<ServletContext> servletContextTL = new ThreadLocal<ServletContext>();
 
