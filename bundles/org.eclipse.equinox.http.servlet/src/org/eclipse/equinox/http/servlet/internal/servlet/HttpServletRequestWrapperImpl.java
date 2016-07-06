@@ -26,26 +26,24 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	private final Stack<DispatchTargets> dispatchTargets = new Stack<DispatchTargets>();
 	private final HttpServletRequest request;
 
-	private static final Set<String> dispatcherAttributes =	new HashSet<String>();
-
-	static {
-		dispatcherAttributes.add(RequestDispatcher.ERROR_EXCEPTION);
-		dispatcherAttributes.add(RequestDispatcher.ERROR_EXCEPTION_TYPE);
-		dispatcherAttributes.add(RequestDispatcher.ERROR_MESSAGE);
-		dispatcherAttributes.add(RequestDispatcher.ERROR_REQUEST_URI);
-		dispatcherAttributes.add(RequestDispatcher.ERROR_SERVLET_NAME);
-		dispatcherAttributes.add(RequestDispatcher.ERROR_STATUS_CODE);
-		dispatcherAttributes.add(RequestDispatcher.FORWARD_CONTEXT_PATH);
-		dispatcherAttributes.add(RequestDispatcher.FORWARD_PATH_INFO);
-		dispatcherAttributes.add(RequestDispatcher.FORWARD_QUERY_STRING);
-		dispatcherAttributes.add(RequestDispatcher.FORWARD_REQUEST_URI);
-		dispatcherAttributes.add(RequestDispatcher.FORWARD_SERVLET_PATH);
-		dispatcherAttributes.add(RequestDispatcher.INCLUDE_CONTEXT_PATH);
-		dispatcherAttributes.add(RequestDispatcher.INCLUDE_PATH_INFO);
-		dispatcherAttributes.add(RequestDispatcher.INCLUDE_QUERY_STRING);
-		dispatcherAttributes.add(RequestDispatcher.INCLUDE_REQUEST_URI);
-		dispatcherAttributes.add(RequestDispatcher.INCLUDE_SERVLET_PATH);
-	}
+	private static final String[] dispatcherAttributes = new String[] {
+		RequestDispatcher.ERROR_EXCEPTION,
+		RequestDispatcher.ERROR_EXCEPTION_TYPE,
+		RequestDispatcher.ERROR_MESSAGE,
+		RequestDispatcher.ERROR_REQUEST_URI,
+		RequestDispatcher.ERROR_SERVLET_NAME,
+		RequestDispatcher.ERROR_STATUS_CODE,
+		RequestDispatcher.FORWARD_CONTEXT_PATH,
+		RequestDispatcher.FORWARD_PATH_INFO,
+		RequestDispatcher.FORWARD_QUERY_STRING,
+		RequestDispatcher.FORWARD_REQUEST_URI,
+		RequestDispatcher.FORWARD_SERVLET_PATH,
+		RequestDispatcher.INCLUDE_CONTEXT_PATH,
+		RequestDispatcher.INCLUDE_PATH_INFO,
+		RequestDispatcher.INCLUDE_QUERY_STRING,
+		RequestDispatcher.INCLUDE_REQUEST_URI,
+		RequestDispatcher.INCLUDE_SERVLET_PATH
+	};
 
 	public static HttpServletRequestWrapperImpl findHttpRuntimeRequest(
 		HttpServletRequest request) {
@@ -159,7 +157,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 		String servletName = current.getServletName();
 
 		if (dispatcherType == DispatcherType.ERROR) {
-			if (dispatcherAttributes.contains(attributeName) &&
+			if ((Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) &&
 				!attributeName.startsWith("javax.servlet.error.")) { //$NON-NLS-1$
 
 				return null;
@@ -212,7 +210,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return current.getServletPath();
 			}
 
-			if (dispatcherAttributes.contains(attributeName)) {
+			if (Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) {
 				return null;
 			}
 		}
@@ -250,7 +248,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return original.getServletPath();
 			}
 
-			if (dispatcherAttributes.contains(attributeName)) {
+			if (Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) {
 				return null;
 			}
 		}
