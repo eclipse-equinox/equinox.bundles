@@ -74,15 +74,13 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 		}
 
 		static void addHttpSessionAdaptor(HttpSessionAdaptor innerSession) {
-			HttpSession httpSession = innerSession.getSession();
-
 			ParentSessionListener parentListener;
 			// need to have a global lock here because we must ensure that this is added only once
-			synchronized (httpSession) {
-				parentListener = (ParentSessionListener) httpSession.getAttribute(PARENT_SESSION_LISTENER_KEY);
+			synchronized (ParentSessionListener.class) {
+				parentListener = (ParentSessionListener) innerSession.getSession().getAttribute(PARENT_SESSION_LISTENER_KEY);
 				if (parentListener == null) {
 					parentListener = new ParentSessionListener();
-					httpSession.setAttribute(PARENT_SESSION_LISTENER_KEY, parentListener);
+					innerSession.getSession().setAttribute(PARENT_SESSION_LISTENER_KEY, parentListener);
 				}
 			}
 
@@ -90,12 +88,10 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 		}
 
 		static void removeHttpSessionAdaptor(HttpSessionAdaptor innerSession) {
-			HttpSession httpSession = innerSession.getSession();
-
 			ParentSessionListener parentListener;
 			// need to have a global lock here because we must ensure that this is added only once
-			synchronized (httpSession) {
-				parentListener = (ParentSessionListener) httpSession.getAttribute(PARENT_SESSION_LISTENER_KEY);
+			synchronized (ParentSessionListener.class) {
+				parentListener = (ParentSessionListener) innerSession.getSession().getAttribute(PARENT_SESSION_LISTENER_KEY);
 			}
 			if (parentListener != null) {
 				parentListener.innerSessions.remove(innerSession);
