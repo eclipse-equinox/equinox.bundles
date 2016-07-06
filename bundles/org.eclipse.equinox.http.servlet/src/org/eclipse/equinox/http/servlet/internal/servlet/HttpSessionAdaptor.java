@@ -14,7 +14,6 @@ package org.eclipse.equinox.http.servlet.internal.servlet;
 
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.servlet.ServletContext;
 import javax.servlet.http.*;
 import org.eclipse.equinox.http.servlet.internal.context.ContextController;
@@ -28,7 +27,7 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 		private static final long serialVersionUID = 4626167646903550760L;
 
 		private static final String PARENT_SESSION_LISTENER_KEY = "org.eclipse.equinox.http.parent.session.listener"; //$NON-NLS-1$
-		transient final Set<HttpSessionAdaptor> innerSessions = Collections.newSetFromMap(new ConcurrentHashMap<HttpSessionAdaptor, Boolean>());
+		transient final Set<HttpSessionAdaptor> innerSessions = new HashSet<HttpSessionAdaptor>();
 		@Override
 		public void valueBound(HttpSessionBindingEvent event) {
 			// do nothing
@@ -38,13 +37,14 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 		public void valueUnbound(HttpSessionBindingEvent event) {
 			// Here we assume the unbound event is signifying the session is being invalidated.
 			// Must invalidate the inner sessions
-			Iterator<HttpSessionAdaptor> iterator = innerSessions.iterator();
+			Set<HttpSessionAdaptor> innerSessionsToInvalidate;
+			synchronized (innerSessions) {
+				// copy the sessions to invalidate and clear the set
+				innerSessionsToInvalidate = new HashSet<HttpSessionAdaptor>(innerSessions);
+				innerSessions.clear();
+			}
 
-			while (iterator.hasNext()) {
-				HttpSessionAdaptor innerSession = iterator.next();
-
-				iterator.remove();
-
+			for (HttpSessionAdaptor innerSession : innerSessionsToInvalidate) {
 				ContextController contextController =
 					innerSession.getController();
 
@@ -83,8 +83,9 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 					innerSession.getSession().setAttribute(PARENT_SESSION_LISTENER_KEY, parentListener);
 				}
 			}
-
-			parentListener.innerSessions.add(innerSession);
+			synchronized (parentListener.innerSessions) {
+				parentListener.innerSessions.add(innerSession);
+			}
 		}
 
 		static void removeHttpSessionAdaptor(HttpSessionAdaptor innerSession) {
@@ -94,7 +95,9 @@ public class HttpSessionAdaptor implements HttpSession, Serializable {
 				parentListener = (ParentSessionListener) innerSession.getSession().getAttribute(PARENT_SESSION_LISTENER_KEY);
 			}
 			if (parentListener != null) {
-				parentListener.innerSessions.remove(innerSession);
+				synchronized (parentListener.innerSessions) {
+					parentListener.innerSessions.remove(innerSession);
+				}
 			}
 		}
 	}
