@@ -152,20 +152,16 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 	public Object getAttribute(String attributeName) {
 		DispatchTargets current = dispatchTargets.peek();
 
-		DispatcherType dispatcherType = current.getDispatcherType();
-
-		String servletName = current.getServletName();
-
-		if (dispatcherType == DispatcherType.ERROR) {
+		if (current.getDispatcherType() == DispatcherType.ERROR) {
 			if ((Arrays.binarySearch(dispatcherAttributes, attributeName) > -1) &&
 				!attributeName.startsWith("javax.servlet.error.")) { //$NON-NLS-1$
 
 				return null;
 			}
 		}
-		else if (dispatcherType == DispatcherType.INCLUDE) {
+		else if (current.getDispatcherType() == DispatcherType.INCLUDE) {
 			if (attributeName.equals(RequestDispatcher.INCLUDE_CONTEXT_PATH)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				if (super.getAttribute(RequestDispatcher.INCLUDE_CONTEXT_PATH) != null) {
@@ -174,7 +170,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return current.getContextController().getContextPath();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_PATH_INFO)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				if (super.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO) != null) {
@@ -183,7 +179,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return current.getPathInfo();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_QUERY_STRING)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				if (super.getAttribute(RequestDispatcher.INCLUDE_QUERY_STRING) != null) {
@@ -192,7 +188,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return current.getQueryString();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_REQUEST_URI)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				if (super.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null) {
@@ -201,7 +197,7 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return current.getRequestURI();
 			}
 			else if (attributeName.equals(RequestDispatcher.INCLUDE_SERVLET_PATH)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				if (super.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH) != null) {
@@ -214,35 +210,35 @@ public class HttpServletRequestWrapperImpl extends HttpServletRequestWrapper {
 				return null;
 			}
 		}
-		else if (dispatcherType == DispatcherType.FORWARD) {
+		else if (current.getDispatcherType() == DispatcherType.FORWARD) {
 			DispatchTargets original = dispatchTargets.get(0);
 
 			if (attributeName.equals(RequestDispatcher.FORWARD_CONTEXT_PATH)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				return original.getContextController().getContextPath();
 			}
 			else if (attributeName.equals(RequestDispatcher.FORWARD_PATH_INFO)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				return original.getPathInfo();
 			}
 			else if (attributeName.equals(RequestDispatcher.FORWARD_QUERY_STRING)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				return original.getQueryString();
 			}
 			else if (attributeName.equals(RequestDispatcher.FORWARD_REQUEST_URI)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				return original.getRequestURI();
 			}
 			else if (attributeName.equals(RequestDispatcher.FORWARD_SERVLET_PATH)) {
-				if (servletName != null) {
+				if (current.getServletName() != null) {
 					return null;
 				}
 				return original.getServletPath();
