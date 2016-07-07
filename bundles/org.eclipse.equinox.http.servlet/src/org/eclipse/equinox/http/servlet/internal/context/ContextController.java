@@ -15,6 +15,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -141,7 +143,7 @@ public class ContextController {
 		this.trackingContext = trackingContextParam;
 		this.consumingContext = consumingContext;
 
-		this.string = getClass().getSimpleName() + '[' + contextName + ", " + trackingContextParam.getBundle() + ']'; //$NON-NLS-1$
+		this.string = SIMPLE_NAME + '[' + contextName + ", " + trackingContextParam.getBundle() + ']'; //$NON-NLS-1$
 
 		listenerServiceTracker = new ServiceTracker<EventListener, AtomicReference<ListenerRegistration>>(
 			trackingContext, httpServiceRuntime.getListenerFilter(),
@@ -1151,20 +1153,22 @@ public class ContextController {
 	}
 
 	private void flushActiveSessions() {
-		Collection<HttpSessionAdaptor> currentActiveSessions;
-		synchronized (activeSessions) {
-			currentActiveSessions = new ArrayList<HttpSessionAdaptor>(activeSessions.values());
-			activeSessions.clear();
-		}
-		for (HttpSessionAdaptor httpSessionAdaptor : currentActiveSessions) {
+		Collection<HttpSessionAdaptor> httpSessionAdaptors =
+			activeSessions.values();
+
+		Iterator<HttpSessionAdaptor> iterator = httpSessionAdaptors.iterator();
+
+		while (iterator.hasNext()) {
+			HttpSessionAdaptor httpSessionAdaptor = iterator.next();
+
 			httpSessionAdaptor.invalidate();
+
+			iterator.remove();
 		}
 	}
 
 	public void removeActiveSession(HttpSession session) {
-		synchronized (activeSessions) {
-			activeSessions.remove(session);
-		}
+		activeSessions.remove(session.getId());
 	}
 
 	public void fireSessionIdChanged(String oldSessionId) {
@@ -1179,11 +1183,7 @@ public class ContextController {
 			return;
 		}
 
-		Collection<HttpSessionAdaptor> currentActiveSessions;
-		synchronized (activeSessions) {
-			currentActiveSessions = new ArrayList<HttpSessionAdaptor>(activeSessions.values());
-		}
-		for (HttpSessionAdaptor httpSessionAdaptor : currentActiveSessions) {
+		for (HttpSessionAdaptor httpSessionAdaptor : activeSessions.values()) {
 			HttpSessionEvent httpSessionEvent = new HttpSessionEvent(httpSessionAdaptor);
 			for (javax.servlet.http.HttpSessionIdListener listener : listeners) {
 				listener.sessionIdChanged(httpSessionEvent, oldSessionId);
@@ -1193,22 +1193,35 @@ public class ContextController {
 
 	public HttpSessionAdaptor getSessionAdaptor(
 		HttpSession session, ServletContext servletContext) {
-		boolean created = false;
-		HttpSessionAdaptor sessionAdaptor;
-		synchronized (activeSessions) {
-			sessionAdaptor = activeSessions.get(session);
-			if (sessionAdaptor == null) {
-				created = true;
-				sessionAdaptor = HttpSessionAdaptor.createHttpSessionAdaptor(session, servletContext, this);
-				activeSessions.put(session, sessionAdaptor);
-			}
+
+		String sessionId = session.getId();
+
+		HttpSessionAdaptor httpSessionAdaptor = activeSessions.get(sessionId);
+
+		if (httpSessionAdaptor != null) {
+			return httpSessionAdaptor;
 		}
-		if (created) {
-			for (HttpSessionListener listener : eventListeners.get(HttpSessionListener.class)) {
-				listener.sessionCreated(new HttpSessionEvent(sessionAdaptor));
-			}
+
+		httpSessionAdaptor = HttpSessionAdaptor.createHttpSessionAdaptor(
+			session, servletContext, this);
+
+		HttpSessionAdaptor previousHttpSessionAdaptor =
+			activeSessions.putIfAbsent(sessionId, httpSessionAdaptor);
+
+		if (previousHttpSessionAdaptor != null) {
+			return previousHttpSessionAdaptor;
 		}
-		return sessionAdaptor;
+
+		HttpSessionEvent httpSessionEvent = new HttpSessionEvent(
+			httpSessionAdaptor);
+
+		for (HttpSessionListener listener : eventListeners.get(
+				HttpSessionListener.class)) {
+
+			listener.sessionCreated(httpSessionEvent);
+		}
+
+		return httpSessionAdaptor;
 	}
 
 	private void validate(String preValidationContextName, String preValidationContextPath) {
@@ -1232,6 +1245,8 @@ public class ContextController {
 	private static final String[] DISPATCHER =
 		new String[] {DispatcherType.REQUEST.toString()};
 
+	private static final String SIMPLE_NAME = ContextController.class.getSimpleName();
+
 	private static final Pattern contextNamePattern = Pattern.compile("^([a-zA-Z_0-9\\-]+\\.)*[a-zA-Z_0-9\\-]+$"); //$NON-NLS-1$
 
 	private final Map<String, String> initParams;
@@ -1243,7 +1258,7 @@ public class ContextController {
 	private final Set<EndpointRegistration<?>> endpointRegistrations = new ConcurrentSkipListSet<EndpointRegistration<?>>();
 	private final EventListeners eventListeners = new EventListeners();
 	private final Set<FilterRegistration> filterRegistrations = new ConcurrentSkipListSet<FilterRegistration>();
-	private final Map<HttpSession, HttpSessionAdaptor> activeSessions = new HashMap<HttpSession, HttpSessionAdaptor>();
+	private final ConcurrentMap<String, HttpSessionAdaptor> activeSessions = new ConcurrentHashMap<String, HttpSessionAdaptor>();
 
 	private final HttpServiceRuntimeImpl httpServiceRuntime;
 	private final Set<ListenerRegistration> listenerRegistrations = new HashSet<ListenerRegistration>();
