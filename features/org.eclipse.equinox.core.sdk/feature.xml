@@ -2,7 +2,7 @@
 <feature
       id="org.eclipse.equinox.core.sdk"
       label="%featureName"
-      version="3.12.0.qualifier"
+      version="3.12.1.qualifier"
       provider-name="%providerName"
       license-feature="org.eclipse.license"
       license-feature-version="0.0.0">
@@ -244,7 +244,7 @@
          fragment="true"
          unpack="false"/>
 
-    <plugin
+   <plugin
          id="org.eclipse.equinox.security.macosx.source"
          os="macosx"
          download-size="0"
