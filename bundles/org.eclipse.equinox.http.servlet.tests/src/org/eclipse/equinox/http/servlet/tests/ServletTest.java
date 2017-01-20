@@ -8,7 +8,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *     Raymond Augé <raymond.auge@liferay.com> - Bug 436698
- *     Juan Gonzalez <juan.gonzalez@liferay.com> - Bug 486412
+ *     Juan Gonzalez <juangon@gmail.com> - Bug 486412
  *******************************************************************************/
 package org.eclipse.equinox.http.servlet.tests;
 
@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.servlet.Filter;
@@ -47,6 +48,7 @@ import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextAttributeListener;
+import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -2839,6 +2841,85 @@ public class ServletTest extends TestCase {
 		Assert.assertEquals(servletContext1.hashCode(), servletContext2.hashCode());
 		Assert.assertNotEquals(servletContext1.hashCode(), servletContext3.hashCode());
 		Assert.assertNotEquals(servletContext2.hashCode(), servletContext3.hashCode());
+	}
+
+	public void test_Listener11() throws Exception {
+
+		final AtomicInteger listenerBalance = new AtomicInteger(0);
+		final AtomicReference<HttpSession> sessionReference = new AtomicReference<HttpSession>();
+
+		ServletContextListener scl = new ServletContextListener() {
+			
+			@Override
+			public void contextInitialized(ServletContextEvent arg0) {
+			}
+			
+			@Override
+			public void contextDestroyed(ServletContextEvent arg0) {
+				listenerBalance.decrementAndGet();
+			}
+		};
+
+		HttpSessionListener sl = new HttpSessionListener() {
+
+			@Override
+			public void sessionDestroyed(HttpSessionEvent se) {
+				listenerBalance.incrementAndGet();
+			}
+
+			@Override
+			public void sessionCreated(HttpSessionEvent se) {
+			}
+		};
+
+		Servlet sA = new HttpServlet() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void doGet(
+				HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+
+				HttpSession session = req.getSession();
+				sessionReference.set(session);
+
+				session.setAttribute("testAttribute", "testValue");
+				PrintWriter writer = resp.getWriter();
+				writer.write("S11 requested");
+			}
+		};
+
+		Collection<ServiceRegistration<?>> registrations = new ArrayList<ServiceRegistration<?>>();
+		try {
+			Dictionary<String, String> scListenerProps = new Hashtable<String, String>();
+			scListenerProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_LISTENER, "true");
+			registrations.add(getBundleContext().registerService(ServletContextListener.class, scl, scListenerProps));
+
+			Dictionary<String, String> sListenerProps = new Hashtable<String, String>();
+			sListenerProps.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_LISTENER, "true");
+			registrations.add(getBundleContext().registerService(HttpSessionListener.class, sl, sListenerProps));
+
+			Dictionary<String, String> servletProps1 = new Hashtable<String, String>();
+			servletProps1.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME, "S11");
+			servletProps1.put(HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN, "/s11");
+			registrations.add(getBundleContext().registerService(Servlet.class, sA, servletProps1));
+
+			String result = requestAdvisor.request("s11");
+			Assert.assertEquals("S11 requested", result);
+		}
+		finally {
+			for (ServiceRegistration<?> registration : registrations) {
+				registration.unregister();
+			}
+		}
+
+		//Emulate session expiration to check sessionListener
+		//is only called once (when unregister)
+		HttpSession session = sessionReference.get();
+
+		session.invalidate();
+
+		Assert.assertEquals(0, listenerBalance.get());
 	}
 
 	public void test_Async1() throws Exception {
