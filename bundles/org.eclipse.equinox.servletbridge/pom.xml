@@ -14,7 +14,7 @@
   <parent>
     <artifactId>rt.equinox.bundles</artifactId>
     <groupId>org.eclipse.equinox.bundles</groupId>
-    <version>4.7.1-SNAPSHOT</version>
+    <version>4.7.2-SNAPSHOT</version>
     <relativePath>../../</relativePath>
   </parent>
   <groupId>org.eclipse.equinox</groupId>
