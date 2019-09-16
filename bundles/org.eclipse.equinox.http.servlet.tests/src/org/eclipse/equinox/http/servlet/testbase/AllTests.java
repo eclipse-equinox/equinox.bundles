@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.equinox.http.servlet.testbase;
 
+import org.eclipse.equinox.http.servlet.tests.Bug500783_Test;
 import org.eclipse.equinox.http.servlet.tests.DispatchingTest;
 import org.eclipse.equinox.http.servlet.tests.ServletTest;
 import org.junit.runner.RunWith;
@@ -17,7 +18,11 @@ import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
-@SuiteClasses({DispatchingTest.class,ServletTest.class})
+@SuiteClasses({
+	DispatchingTest.class,
+	ServletTest.class,
+	Bug500783_Test.class
+})
 public class AllTests {
 	// see @SuiteClasses
 }
