@@ -12,6 +12,8 @@
 package org.eclipse.equinox.http.servlet.internal;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -19,8 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.servlet.*;
 import javax.servlet.Filter;
-import javax.servlet.http.HttpSessionAttributeListener;
-import javax.servlet.http.HttpSessionListener;
+import javax.servlet.http.*;
 import org.eclipse.equinox.http.servlet.context.ContextPathCustomizer;
 import org.eclipse.equinox.http.servlet.dto.ExtendedFailedServletDTO;
 import org.eclipse.equinox.http.servlet.internal.context.*;
@@ -392,7 +393,7 @@ public class HttpServiceRuntimeImpl
 
 		int pos = requestURI.lastIndexOf('/');
 
-		String servletPath = requestURI;
+		String servletPath = decode(requestURI);
 		String pathInfo = null;
 
 		if (match == Match.DEFAULT_SERVLET) {
@@ -418,8 +419,8 @@ public class HttpServiceRuntimeImpl
 
 			if (pos > -1) {
 				String newServletPath = requestURI.substring(0, pos);
-				pathInfo = requestURI.substring(pos);
-				servletPath = newServletPath;
+				pathInfo = decode(requestURI.substring(pos));
+				servletPath = decode(newServletPath);
 				pos = servletPath.lastIndexOf('/');
 
 				continue;
@@ -947,7 +948,7 @@ public class HttpServiceRuntimeImpl
 		sb.append("(objectClass=").append(HttpSessionAttributeListener.class.getName()).append(")"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		if ((servletContext.getMajorVersion() >= 3) && (servletContext.getMinorVersion() > 0)) {
-			sb.append("(objectClass=").append(javax.servlet.http.HttpSessionIdListener.class.getName()).append(")"); //$NON-NLS-1$ //$NON-NLS-2$
+			sb.append("(objectClass=").append(HttpSessionIdListener.class.getName()).append(")"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 
 		sb.append(")"); //$NON-NLS-1$
@@ -1079,6 +1080,15 @@ public class HttpServiceRuntimeImpl
 
 	private BundleContext trackingContext;
 	private BundleContext consumingContext;
+
+	private String decode(String urlEncoded) {
+		try {
+			return URLDecoder.decode(urlEncoded, "UTF-8"); //$NON-NLS-1$
+		}
+		catch (UnsupportedEncodingException e) {
+			return urlEncoded;
+		}
+	}
 
 	private final org.osgi.framework.Filter servletServiceFilter;
 	private final org.osgi.framework.Filter resourceServiceFilter;
