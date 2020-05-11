@@ -12,6 +12,7 @@ package org.eclipse.equinox.http.servlet.testbase;
 
 import org.eclipse.equinox.http.servlet.tests.Bug500783_Test;
 import org.eclipse.equinox.http.servlet.tests.Bug562440_Test;
+import org.eclipse.equinox.http.servlet.tests.Bug562843_2_Test;
 import org.eclipse.equinox.http.servlet.tests.Bug562843_Test;
 import org.eclipse.equinox.http.servlet.tests.DispatchingTest;
 import org.eclipse.equinox.http.servlet.tests.ServletTest;
@@ -25,7 +26,8 @@ import org.junit.runners.Suite.SuiteClasses;
 	ServletTest.class,
 	Bug500783_Test.class,
 	Bug562440_Test.class,
-	Bug562843_Test.class
+	Bug562843_Test.class,
+	Bug562843_2_Test.class
 })
 public class AllTests {
 	// see @SuiteClasses
