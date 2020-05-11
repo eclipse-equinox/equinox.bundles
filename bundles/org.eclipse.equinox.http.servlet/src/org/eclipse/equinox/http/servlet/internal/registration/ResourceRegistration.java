@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Raymond Augé and others.
+ * Copyright (c) 2014, 2020 Raymond Augé and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -29,7 +29,6 @@ public class ResourceRegistration extends EndpointRegistration<ResourceDTO> {
 		super(servletHolder, resourceDTO, servletContextHelper, contextController, legacyTCCL);
 
 		name = servletHolder.get().getClass().getName().concat("#").concat(getD().prefix); //$NON-NLS-1$
-		needDecode = MatchableRegistration.patternsRequireDecode(resourceDTO.patterns);
 	}
 
 	@Override
@@ -47,12 +46,6 @@ public class ResourceRegistration extends EndpointRegistration<ResourceDTO> {
 		return getD().serviceId;
 	}
 
-	@Override
-	public boolean needDecode() {
-		return needDecode;
-	}
-
-	private final boolean needDecode;
 	private final String name;
 
 }

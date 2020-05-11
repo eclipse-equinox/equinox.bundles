@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2016 Cognos Incorporated, IBM Corporation and others
+ * Copyright (c) 2005, 2020 Cognos Incorporated, IBM Corporation and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -66,7 +66,6 @@ public class ServletRegistration extends EndpointRegistration<ExtendedServletDTO
 		else {
 			multipartSupport = null;
 		}
-		needDecode = MatchableRegistration.patternsRequireDecode(servletDTO.patterns);
 	}
 
 	public ErrorPageDTO getErrorPageDTO() {
@@ -117,12 +116,7 @@ public class ServletRegistration extends EndpointRegistration<ExtendedServletDTO
 
 		return multipartSupport.parseRequest(request);
 	}
-	@Override
-	public boolean needDecode() {
-		return needDecode;
-	}
 
-	private final boolean needDecode;
 	private final ErrorPageDTO errorPageDTO;
 	private final MultipartSupport multipartSupport;
 }
