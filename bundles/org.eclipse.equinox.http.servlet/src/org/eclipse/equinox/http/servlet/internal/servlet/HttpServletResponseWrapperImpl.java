@@ -45,6 +45,13 @@ public class HttpServletResponseWrapperImpl extends HttpServletResponseWrapper {
 
 	@Override
 	public int getStatus() {
+		if (status == -1) {
+			return super.getStatus();
+		}
+		return status;
+	}
+
+	public int getInternalStatus() {
 		return status;
 	}
 
@@ -62,6 +69,15 @@ public class HttpServletResponseWrapperImpl extends HttpServletResponseWrapper {
 			writer = new InternalWriter(super.getWriter());
 		}
 		return writer;
+	}
+
+	@Override
+	public void flushBuffer() throws IOException {
+		if (status != -1) {
+			HttpServletResponse wrappedResponse = (HttpServletResponse)this.getResponse();
+			wrappedResponse.sendError(status, getMessage());
+		}
+		super.flushBuffer();
 	}
 
 	public boolean isCompleted() {
@@ -105,6 +121,10 @@ public class HttpServletResponseWrapperImpl extends HttpServletResponseWrapper {
 
 		@Override
 		public void flush() throws IOException {
+			if (getInternalStatus() != -1) {
+				HttpServletResponse wrappedResponse = (HttpServletResponse) HttpServletResponseWrapperImpl.this.getResponse();
+				wrappedResponse.sendError(getInternalStatus(), getMessage());
+			}
 			originalOutputStream.flush();
 		}
 

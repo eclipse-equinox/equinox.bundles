@@ -11,6 +11,7 @@
 package org.eclipse.equinox.http.servlet.testbase;
 
 import org.eclipse.equinox.http.servlet.tests.Bug500783_Test;
+import org.eclipse.equinox.http.servlet.tests.Bug562440_Test;
 import org.eclipse.equinox.http.servlet.tests.DispatchingTest;
 import org.eclipse.equinox.http.servlet.tests.ServletTest;
 import org.junit.runner.RunWith;
@@ -21,7 +22,8 @@ import org.junit.runners.Suite.SuiteClasses;
 @SuiteClasses({
 	DispatchingTest.class,
 	ServletTest.class,
-	Bug500783_Test.class
+	Bug500783_Test.class,
+	Bug562440_Test.class
 })
 public class AllTests {
 	// see @SuiteClasses
