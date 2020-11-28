@@ -34,3 +34,4 @@ Bug 559370 - Update platform to Jetty 9.4.26
 Bug 560655 - Update Jetty to 9.4.27
 Bug Bug 564984 (CVE-2019-17638) - CVE Request: Jetty Corrupt Response Buffer (Update to Jetty 9.4.31)
 Bug 568292 - Update to Jetty 9.4.33
+Bug 569227 - Update to Jetty 9.4.35
