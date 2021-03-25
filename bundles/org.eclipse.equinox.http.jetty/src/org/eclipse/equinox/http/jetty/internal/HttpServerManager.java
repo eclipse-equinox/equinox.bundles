@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2016 IBM Corporation and others.
+ * Copyright (c) 2007, 2021 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,6 +24,7 @@ import javax.servlet.http.HttpSessionIdListener;
 import org.eclipse.equinox.http.jetty.JettyConstants;
 import org.eclipse.equinox.http.jetty.JettyCustomizer;
 import org.eclipse.equinox.http.servlet.HttpServiceServlet;
+import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -174,7 +175,7 @@ public class HttpServerManager implements ManagedServiceFactory {
 			https_config.addCustomizer(new SecureRequestCustomizer());
 
 			// HTTPS connector
-			httpsConnector = new ServerConnector(server, new SslConnectionFactory(sslContextFactory, "http/1.1"), new HttpConnectionFactory(https_config)); //$NON-NLS-1$
+			httpsConnector = new ServerConnector(server, new SslConnectionFactory(sslContextFactory, "http/1.1"), new HttpConnectionFactory(https_config, HttpCompliance.LEGACY)); //$NON-NLS-1$
 			httpsConnector.setPort(Details.getInt(dictionary, JettyConstants.HTTPS_PORT, 443));
 		}
 		return httpsConnector;
@@ -189,7 +190,7 @@ public class HttpServerManager implements ManagedServiceFactory {
 				http_config.setSecurePort(Details.getInt(dictionary, JettyConstants.HTTPS_PORT, 443));
 			}
 			// HTTP connector
-			httpConnector = new ServerConnector(server, new HttpConnectionFactory(http_config));
+			httpConnector = new ServerConnector(server, new HttpConnectionFactory(http_config, HttpCompliance.LEGACY));
 			httpConnector.setPort(Details.getInt(dictionary, JettyConstants.HTTP_PORT, 80));
 			httpConnector.setHost(Details.getString(dictionary, JettyConstants.HTTP_HOST, null));
 			httpConnector.setIdleTimeout(DEFAULT_IDLE_TIMEOUT);
