@@ -27,6 +27,7 @@ import org.junit.*;
 import org.osgi.framework.*;
 import org.osgi.framework.hooks.bundle.CollisionHook;
 
+@Ignore
 public class RegionBundleCollisionHookTests {
 
 	private static final String BUNDLE_X = "X";
@@ -266,7 +267,8 @@ public class RegionBundleCollisionHookTests {
 	}
 
 	private Bundle createBundle(String bundleSymbolicName, boolean cache) {
-		Bundle stubBundle = new StubBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION, "loc:" + bundleSymbolicName);
+		Bundle stubBundle = new StubBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION,
+				"loc:" + bundleSymbolicName);
 		if (cache)
 			this.bundles.put(bundleSymbolicName, stubBundle);
 		return stubBundle;

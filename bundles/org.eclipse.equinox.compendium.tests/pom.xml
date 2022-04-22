@@ -12,16 +12,79 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>tests-pom</artifactId>
     <groupId>org.eclipse.equinox.bundles</groupId>
+    <artifactId>rt.equinox.bundles</artifactId>
     <version>4.24.0-SNAPSHOT</version>
-    <relativePath>../../tests-pom/</relativePath>
+    <relativePath>../..</relativePath>
   </parent>
   <groupId>org.eclipse.equinox</groupId>
   <artifactId>org.eclipse.equinox.compendium.tests</artifactId>
   <version>1.2.300-SNAPSHOT</version>
   <packaging>eclipse-test-plugin</packaging>
   <properties>
-    <skipTests>true</skipTests>
+    <skipAPIAnalysis>true</skipAPIAnalysis>
+    <testClass>org.eclipse.equinox.compendium.tests.AllTests</testClass>
+    <code.ignoredWarnings>${tests.ignoredWarnings}</code.ignoredWarnings>
   </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>tycho-surefire-plugin</artifactId>
+        <version>3.0.0-SNAPSHOT</version>
+        <configuration>
+          <testClass>org.eclipse.equinox.compendium.tests.AllTests</testClass>
+          <bundleStartLevel>
+            <bundle>
+              <id>org.apache.felix.scr</id>
+              <level>1</level>
+              <autoStart>true</autoStart>
+            </bundle>
+          </bundleStartLevel>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>target-platform-configuration</artifactId>
+        <version>${tycho.version}</version>
+        <configuration>
+          <dependency-resolution>
+            <extraRequirements>
+              <requirement>
+                <id>org.eclipse.osgi.compatibility.state</id>
+                <type>eclipse-plugin</type>
+                <versionRange>0.0.0</versionRange>
+              </requirement>
+              <requirement>
+                <id>org.eclipse.equinox.coordinator</id>
+                <type>eclipse-plugin</type>
+                <versionRange>0.0.0</versionRange>
+              </requirement>
+              <requirement>
+                <id>org.eclipse.equinox.event</id>
+                <type>eclipse-plugin</type>
+                <versionRange>0.0.0</versionRange>
+              </requirement>
+              <requirement>
+                <id>org.eclipse.equinox.metatype</id>
+                <type>eclipse-plugin</type>
+                <versionRange>0.0.0</versionRange>
+              </requirement>
+              <requirement>
+                <id>org.eclipse.equinox.useradmin</id>
+                <type>eclipse-plugin</type>
+                <versionRange>0.0.0</versionRange>
+              </requirement>
+              <requirement>
+                <id>org.apache.felix.scr</id>
+                <type>eclipse-plugin</type>
+                <versionRange>0.0.0</versionRange>
+              </requirement>
+            </extraRequirements>
+          </dependency-resolution>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>

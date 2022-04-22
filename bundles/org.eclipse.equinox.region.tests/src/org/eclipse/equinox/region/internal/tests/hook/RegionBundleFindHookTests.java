@@ -27,6 +27,7 @@ import org.junit.*;
 import org.osgi.framework.*;
 import org.osgi.framework.hooks.bundle.FindHook;
 
+@Ignore
 public class RegionBundleFindHookTests {
 
 	private static final String BUNDLE_X = "X";
@@ -74,7 +75,8 @@ public class RegionBundleFindHookTests {
 		stubBundleContext.addInstalledBundle(stubSystemBundle);
 		this.threadLocal = new ThreadLocal<Region>();
 		this.digraph = RegionReflectionUtils.newStandardRegionDigraph(stubBundleContext, this.threadLocal);
-		this.bundleFindHook = RegionReflectionUtils.newRegionBundleFindHook(this.digraph, stubSystemBundle.getBundleId());
+		this.bundleFindHook = RegionReflectionUtils.newRegionBundleFindHook(this.digraph,
+				stubSystemBundle.getBundleId());
 		this.candidates = new HashSet<Bundle>();
 
 		// Create regions A, B, C, D containing bundles A, B, C, D, respectively.
@@ -271,14 +273,17 @@ public class RegionBundleFindHookTests {
 		}
 
 		if (negate) {
-			String negateFilter = "(!(|" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE + "=" + RegionFilter.VISIBLE_BUNDLE_NAMESPACE + ")" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE + "=" + RegionFilter.VISIBLE_BUNDLE_LIFECYCLE_NAMESPACE + ")" + "))";
+			String negateFilter = "(!(|" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE + "="
+					+ RegionFilter.VISIBLE_BUNDLE_NAMESPACE + ")" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE
+					+ "=" + RegionFilter.VISIBLE_BUNDLE_LIFECYCLE_NAMESPACE + ")" + "))";
 			builder.allow(RegionFilter.VISIBLE_ALL_NAMESPACE, negateFilter);
 		}
 		return builder.build();
 	}
 
 	private Bundle createBundle(String bundleSymbolicName) {
-		Bundle stubBundle = new StubBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION, "loc:" + bundleSymbolicName);
+		Bundle stubBundle = new StubBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION,
+				"loc:" + bundleSymbolicName);
 		this.bundles.put(bundleSymbolicName, stubBundle);
 		return stubBundle;
 	}

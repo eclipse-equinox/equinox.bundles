@@ -28,6 +28,7 @@ import org.osgi.framework.hooks.service.EventHook;
 /**
  * This testcase was based on {@link RegionBundleFindHookTests}.
  */
+@Ignore
 public class RegionServiceEventHookTests {
 
 	private static final String BUNDLE_X = "X";
@@ -224,7 +225,8 @@ public class RegionServiceEventHookTests {
 	@Test
 	public void testEventFromSystemBundle() {
 		Bundle systemBundle = new StubBundle(0L, "sys", BUNDLE_VERSION, "");
-		Collection<BundleContext> contexts = new ArrayList<BundleContext>(Arrays.asList(systemBundle.getBundleContext()));
+		Collection<BundleContext> contexts = new ArrayList<BundleContext>(
+				Arrays.asList(systemBundle.getBundleContext()));
 		this.serviceEventHook.event(serviceEvent(BUNDLE_A), contexts);
 		assertTrue(contexts.contains(systemBundle.getBundleContext()));
 	}
@@ -260,24 +262,29 @@ public class RegionServiceEventHookTests {
 		for (String filter : filters) {
 			builder.allow(RegionFilter.VISIBLE_SERVICE_NAMESPACE, filter);
 		}
-		String negateFilter = "(!(|" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE + "=" + RegionFilter.VISIBLE_SERVICE_NAMESPACE + ")" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE + "=" + RegionFilter.VISIBLE_BUNDLE_NAMESPACE + ")" + "))";
+		String negateFilter = "(!(|" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE + "="
+				+ RegionFilter.VISIBLE_SERVICE_NAMESPACE + ")" + "(" + RegionFilter.VISIBLE_ALL_NAMESPACE_ATTRIBUTE
+				+ "=" + RegionFilter.VISIBLE_BUNDLE_NAMESPACE + ")" + "))";
 		builder.allow(RegionFilter.VISIBLE_ALL_NAMESPACE, negateFilter);
 		return builder.build();
 	}
 
 	private Bundle createBundle(String bundleSymbolicName) {
-		Bundle stubBundle = new StubBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION, "loc:" + bundleSymbolicName);
+		Bundle stubBundle = new StubBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION,
+				"loc:" + bundleSymbolicName);
 		this.bundles.put(bundleSymbolicName, stubBundle);
 		createServiceReference(stubBundle, bundleSymbolicName);
 		return stubBundle;
 	}
 
 	private StubServiceReference<Object> createServiceReference(Bundle stubBundle, String referenceName) {
-		StubServiceRegistration<Object> stubServiceRegistration = new StubServiceRegistration<Object>((StubBundleContext) stubBundle.getBundleContext(), referenceName);
+		StubServiceRegistration<Object> stubServiceRegistration = new StubServiceRegistration<Object>(
+				(StubBundleContext) stubBundle.getBundleContext(), referenceName);
 		StubServiceReference<Object> stubServiceReference = new StubServiceReference<Object>(stubServiceRegistration);
 		this.serviceReferences.put(referenceName, stubServiceReference);
 
-		StubServiceRegistration<Object> dupServiceRegistration = new StubServiceRegistration<Object>((StubBundleContext) stubBundle.getBundleContext(), DUPLICATE + stubBundle.getBundleId());
+		StubServiceRegistration<Object> dupServiceRegistration = new StubServiceRegistration<Object>(
+				(StubBundleContext) stubBundle.getBundleContext(), DUPLICATE + stubBundle.getBundleId());
 		StubServiceReference<Object> dupServiceReference = new StubServiceReference<Object>(dupServiceRegistration);
 		this.serviceReferences.put(DUPLICATE + stubBundle.getBundleId(), dupServiceReference);
 		return stubServiceReference;
