@@ -1,6 +1,0 @@
-org.eclipse.equinox.weaving.hook/debug=false
-org.eclipse.equinox.weaving.hook/debug/bundle=false
-org.eclipse.equinox.weaving.hook/debug/weave=true
-org.eclipse.equinox.weaving.hook/debug/cache=false
-org.eclipse.equinox.weaving.hook/debug/supplements=false
-org.eclipse.equinox.weaving.hook/debug/bundleName=false
